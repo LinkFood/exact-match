@@ -23,7 +23,11 @@ export function SettingsPanel({ settings, onSave, onClose }: SettingsPanelProps)
   const { toast } = useToast();
 
   const update = <K extends keyof Settings>(key: K, value: Settings[K]) => {
-    setDraft((prev) => ({ ...prev, [key]: value }));
+    setDraft((prev) => {
+      const next = { ...prev, [key]: value };
+      onSave(next);
+      return next;
+    });
   };
 
   const handleSave = () => {

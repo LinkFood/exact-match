@@ -14,10 +14,98 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      edge_scans: {
+        Row: {
+          away_team: string
+          book_consensus: number
+          book_lines: Json | null
+          created_at: string | null
+          edge_pct: number
+          edge_team: string
+          edge_team_won: boolean | null
+          game_date: string
+          home_team: string
+          hours_to_tipoff: number | null
+          id: string
+          num_books: number | null
+          odds_api_game_id: string
+          poly_event_id: string | null
+          poly_price: number | null
+          poly_slug: string | null
+          poly_volume: number | null
+          result: string | null
+          scan_id: string
+          settled_at: string | null
+          signal: string | null
+          sport: string | null
+          tip_off_time: string | null
+        }
+        Insert: {
+          away_team: string
+          book_consensus: number
+          book_lines?: Json | null
+          created_at?: string | null
+          edge_pct: number
+          edge_team: string
+          edge_team_won?: boolean | null
+          game_date: string
+          home_team: string
+          hours_to_tipoff?: number | null
+          id?: string
+          num_books?: number | null
+          odds_api_game_id: string
+          poly_event_id?: string | null
+          poly_price?: number | null
+          poly_slug?: string | null
+          poly_volume?: number | null
+          result?: string | null
+          scan_id: string
+          settled_at?: string | null
+          signal?: string | null
+          sport?: string | null
+          tip_off_time?: string | null
+        }
+        Update: {
+          away_team?: string
+          book_consensus?: number
+          book_lines?: Json | null
+          created_at?: string | null
+          edge_pct?: number
+          edge_team?: string
+          edge_team_won?: boolean | null
+          game_date?: string
+          home_team?: string
+          hours_to_tipoff?: number | null
+          id?: string
+          num_books?: number | null
+          odds_api_game_id?: string
+          poly_event_id?: string | null
+          poly_price?: number | null
+          poly_slug?: string | null
+          poly_volume?: number | null
+          result?: string | null
+          scan_id?: string
+          settled_at?: string | null
+          signal?: string | null
+          sport?: string | null
+          tip_off_time?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
-      [_ in never]: never
+      edge_performance: {
+        Row: {
+          avg_edge: number | null
+          avg_volume: number | null
+          edge_bucket: string | null
+          losses: number | null
+          total_games: number | null
+          win_rate: number | null
+          wins: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       [_ in never]: never

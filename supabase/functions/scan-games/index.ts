@@ -33,17 +33,17 @@ const MASCOT_SUFFIXES = [
   "Golden Eagles", "Runnin' Rebels", "Running Rebels", "Screaming Eagles",
   "Yellow Jackets", "Nittany Lions", "Crimson Tide", "Fighting Irish",
   "Golden Gophers", "Horned Frogs", "Scarlet Knights", "Mean Green",
-  "Red Foxes", "Blue Hens", "Golden Grizzlies", "River Hawks",
+  "Red Foxes", "Blue Hens", "Fightin' Blue Hens", "Golden Grizzlies", "River Hawks",
   "Great Danes", "Black Bears", "Purple Aces", "Ragin' Cajuns",
   "Fighting Illini", "Fighting Hawks", "Golden Flashes", "Blue Hose",
   "Runnin' Bulldogs", "Red Flash", "Golden Panthers", "Blue Raiders",
-  "Trail Blazers",
+  "Trail Blazers", "Black Knights",
   // Single-word
   "Aggies", "Anteaters", "Aztecs", "Badgers", "Bears", "Bearcats", "Beavers",
   "Bengals", "Billikens", "Bison", "Blazers", "Boilermakers", "Bonnies",
   "Braves", "Bruins", "Buckeyes", "Buccaneers", "Bulldogs", "Bulls",
   "Cardinals", "Catamounts", "Cavaliers", "Celtics", "Chanticleers",
-  "Chargers", "Chiefs", "Clippers", "Colonials", "Colts", "Commanders",
+  "Chargers", "Chiefs", "Clippers", "Colonials", "Colonels", "Colts", "Commanders",
   "Commodores", "Cougars", "Cowboys", "Crimson", "Crusaders", "Cyclones",
   "Dolphins", "Dons", "Dragons", "Ducks", "Dukes",
   "Eagles", "Engineers", "Explorers",
@@ -54,7 +54,7 @@ const MASCOT_SUFFIXES = [
   "Islanders",
   "Jaguars", "Jayhawks", "Jays", "Jets",
   "Kangaroos", "Kings", "Knicks", "Knights",
-  "Lakers", "Lancers", "Leopards", "Lions", "Lobos", "Longhorns", "Lumberjacks",
+  "Lakers", "Lancers", "Leathernecks", "Leopards", "Lions", "Lobos", "Longhorns", "Lumberjacks",
   "Magic", "Mastodons", "Mavericks", "Miners", "Mocs", "Monarchs",
   "Mountaineers", "Musketeers", "Mustangs",
   "Nets", "Norse", "Nuggets",
@@ -73,7 +73,6 @@ const MASCOT_SUFFIXES = [
   "Warhawks", "Warriors", "Waves", "Wildcats", "Wizards", "Wolfpack",
   "Wolverines", "Wolves",
   "Zags", "Zips",
-  // NBA/NFL city-based (kept as fallback)
   "Heat", "Jazz", "76ers",
 ];
 
@@ -88,6 +87,7 @@ const SCHOOL_ALIASES: Record<string, string> = {
   "utep": "texas el paso",
   "vcu": "virginia commonwealth",
   "fiu": "florida international",
+  "florida int'l": "florida international",
   "fau": "florida atlantic",
   "unc": "north carolina",
   "pitt": "pittsburgh",
@@ -103,11 +103,27 @@ const SCHOOL_ALIASES: Record<string, string> = {
   "jmu": "james madison",
   "odu": "old dominion",
   "byu": "brigham young",
-  "st. john's": "st johns",
-  "saint john's": "st johns",
-  "st johns": "st johns",
+  "st. john's": "state johns",
+  "saint john's": "state johns",
+  "st johns": "state johns",
   "saint mary's": "saint marys",
   "st. mary's": "saint marys",
+  // New aliases for matching fixes
+  "uncw": "unc wilmington",
+  "uncg": "unc greensboro",
+  "unca": "unc asheville",
+  "siue": "siu edwardsville",
+  "umkc": "missouri kansas city",
+  "penn": "pennsylvania",
+  "ul monroe": "louisiana monroe",
+  "se missouri": "southeast missouri",
+  "app state": "appalachian state",
+  "loyola maryland": "loyola md",
+  "loyola (md)": "loyola md",
+  "queens (nc)": "queens",
+  "queens university": "queens",
+  "miami (fl)": "miami",
+  "miami (oh)": "miami ohio",
   // NBA/NFL aliases
   "la lakers": "los angeles lakers",
   "la clippers": "los angeles clippers",
@@ -128,8 +144,28 @@ function extractSchoolName(fullName: string): string {
 }
 
 function normalizeSchoolName(school: string): string {
-  const lower = school.toLowerCase().trim();
-  return SCHOOL_ALIASES[lower] || lower;
+  let n = school.toLowerCase().trim();
+
+  // 1. CRITICAL: "st" / "st." → "state" (biggest single fix)
+  n = n.replace(/\bst\.?\b/g, "state");
+
+  // 2. Strip "fightin'" prefix
+  n = n.replace(/\bfightin'?\s*/g, "");
+
+  // 3. Hyphens → spaces, collapse whitespace
+  n = n.replace(/-/g, " ").replace(/\s+/g, " ").trim();
+
+  // 4. Remove parenthetical qualifiers like (OH), (FL)
+  n = n.replace(/\([^)]*\)/g, "").trim();
+
+  // 5. Strip "university" / "college"
+  n = n.replace(/\buniversity\b/g, "").replace(/\bcollege\b/g, "").trim();
+
+  // 6. Collapse whitespace again after removals
+  n = n.replace(/\s+/g, " ").trim();
+
+  // 7. Alias lookup
+  return SCHOOL_ALIASES[n] || n;
 }
 
 function getSchoolKey(fullTeamName: string): string {
@@ -350,6 +386,24 @@ serve(async (req) => {
         }
       }
 
+      // Calculate edge confidence
+      let edgeConfidence: number | null = null;
+      const numBooks = bookBreakdown.length;
+      if (edge !== null && polyVolume && numBooks > 0) {
+        const hoursToTip = Math.max(
+          (new Date(tipoff).getTime() - Date.now()) / 3600000,
+          0.5
+        );
+        edgeConfidence =
+          Math.abs(edge) *
+          Math.log10(Math.max(polyVolume, 1)) *
+          Math.sqrt(numBooks) *
+          (1 / hoursToTip);
+      }
+
+      // Filter out live/in-progress games
+      if (new Date(tipoff) < new Date()) continue;
+
       if (polyMatch) {
         games.push({
           id: oddsGame.id,
@@ -377,6 +431,8 @@ serve(async (req) => {
           signal,
           signalTeam,
           signalExplanation,
+          edgeConfidence,
+          numBooks,
         });
       } else {
         unmatchedBooks.push(`${oddsGame.away_team} vs ${oddsGame.home_team}`);

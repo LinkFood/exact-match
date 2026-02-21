@@ -1,49 +1,94 @@
 
 
-## Fix 5: Polymarket API Date Filtering
+## PolyEdge Improvements: Matching, Display, and Edge Quality
 
-### Problem
-The Polymarket fetch uses `order=startTime&ascending=false&limit=100`, returning future games (Feb 26-27) first. Today's games are buried past the 100-event limit, producing zero matches.
+### PART 1: Matching Fixes (scan-games Edge Function)
 
-### Changes (single file: `supabase/functions/scan-games/index.ts`)
+**File: `supabase/functions/scan-games/index.ts`**
 
-**1. Build date-filtered Polymarket URL (before the fetch call)**
+Rewrite `normalizeSchoolName()` (lines 130-133) to handle all the naming inconsistencies before alias lookup:
 
-Calculate `end_date_min` (today midnight UTC) and `end_date_max` (today+2 midnight UTC) to capture today's games whose settlement dates fall within that window. Remove `order`, `ascending`, and `tag_id=100639` (redundant with `series_id`). Increase `limit` to 200.
+1. **"State" vs "St" vs "St."** -- Replace standalone `\bst\.?\b` with "state" (biggest single fix, ~15+ games)
+2. **"Fightin'" prefix** -- Strip `fightin'` (Delaware case)
+3. **Hyphens and extra spaces** -- Normalize `UMass-Lowell` to `umass lowell`
+4. **Parenthetical qualifiers** -- Remove `(OH)`, `(FL)`, `(MD)`, `(NC)`, `(Chi)`
+5. **"University" / "College"** -- Strip these words
 
-**2. Replace the Polymarket fetch URL (line 165)**
+Add new entries to `SCHOOL_ALIASES` (lines 80-116):
+- `uncw` -> `unc wilmington`, `uncg` -> `unc greensboro`, `unca` -> `unc asheville`
+- `siue` -> `siu edwardsville`, `umkc` -> `missouri kansas city`
+- `penn` -> `pennsylvania`, `ul monroe` -> `louisiana monroe`
+- `florida int'l` -> `florida international`, `se missouri` -> `southeast missouri`
+- `app state` -> `appalachian state`, `sam houston st` -> `sam houston state`
+- `loyola maryland` -> `loyola md` (and reverse mapping)
 
-From:
+Add `"Black Knights"` to `MASCOT_SUFFIXES` so "Army Black Knights" extracts to "army" matching "Army Knights".
+
+Expected impact: ~25-35 additional matched games.
+
+---
+
+### PART 2: Display Improvements
+
+**2a. Show full school names instead of just mascots**
+
+**File: `src/lib/polyedge.ts`** -- Change `formatTeamWithRank()` to show school name (everything before the mascot) instead of just the last word:
+
 ```
-https://gamma-api.polymarket.com/events?series_id=${config.seriesId}&tag_id=100639&active=true&closed=false&order=startTime&ascending=false&limit=100
-```
-
-To:
-```
-https://gamma-api.polymarket.com/events?series_id=${config.seriesId}&active=true&closed=false&limit=200&end_date_min=${endDateMin}&end_date_max=${endDateMax}
-```
-
-**3. Add client-side `eventDate` filter (lines 186-187)**
-
-After fetching, filter `allPolyEvents` to only events where `event.eventDate` matches today's date string (YYYY-MM-DD format). This narrows the 2-day server-side window to exactly today.
-
-Replace:
-```typescript
-const polyEvents = allPolyEvents;
-```
-
-With:
-```typescript
-const todayStr = new Date().toISOString().split('T')[0];
-const polyEvents = allPolyEvents.filter((e: any) => e.eventDate === todayStr);
-```
-
-**4. Update debug log (line 188)**
-
-Show both total fetched and filtered counts for debugging:
-```typescript
-console.log(`Poly events: ${allPolyEvents.length} fetched, ${polyEvents.length} today, ESPN: ${espnEvents.length}, Odds API: ${oddsGames.length}`);
+function formatTeamWithRank(team: string, rank: number | null, abbr?: string): string {
+  const name = abbr || team;
+  return rank ? `#${rank} ${name}` : name;
+}
 ```
 
-No other changes. School-name matching, side alignment, and everything else remain untouched.
+This shows full team names like "Georgia Southern Eagles" instead of just "Eagles".
+
+**File: `src/components/GameTable.tsx`** -- The teams column already uses `formatTeamWithRank`, so this change propagates automatically. Truncation via `truncate` CSS class handles overflow.
+
+**2b. Add Polymarket link to BUY/SELL signal badge**
+
+**File: `src/components/GameTable.tsx`** -- Wrap the signal badge (the "BUY Eagles" span) in an anchor tag linking to `game.polyMarketUrl` with `target="_blank"`. Add click stopPropagation to prevent row expansion.
+
+**2c. Show number of sportsbooks in Books % column**
+
+**File: `src/components/GameTable.tsx`** -- Change the Book Consensus cell to show count: `61.1% (4)` using `game.bookBreakdown.length`.
+
+**File: `src/types/polyedge.ts`** -- No changes needed; `bookBreakdown` array length already available.
+
+---
+
+### PART 3: Edge Quality Improvements
+
+**3a. Edge confidence score**
+
+**File: `supabase/functions/scan-games/index.ts`** -- After calculating edge, compute a confidence score:
+
+```
+confidence = |edge| * log10(max(volume, 1)) * sqrt(numBooks) * (1 / max(hoursToTip, 0.5))
+```
+
+Add `edgeConfidence: number | null` to the game object returned.
+
+**File: `src/types/polyedge.ts`** -- Add `edgeConfidence: number | null` and `numBooks: number` to `GameData`.
+
+**File: `src/components/GameTable.tsx`** -- Add a confidence indicator (low/med/high) next to the edge value, and add `numBooks` to the response.
+
+**3b. Filter out live/in-progress games**
+
+**File: `supabase/functions/scan-games/index.ts`** -- After building the games list, filter out games where `tipoff` is in the past. Compare `new Date(tipoff) < new Date()`.
+
+**3c. Auto-refresh default**
+
+**File: `src/types/polyedge.ts`** -- Change `DEFAULT_SETTINGS.autoScan` from `false` to `true` and `scanFrequency` from `30` to `1` (1 minute).
+
+---
+
+### Summary of Files Changed
+
+| File | Changes |
+|------|---------|
+| `supabase/functions/scan-games/index.ts` | Enhanced `normalizeSchoolName()`, expanded `SCHOOL_ALIASES`, added "Black Knights" mascot, confidence score, filter live games |
+| `src/types/polyedge.ts` | Added `edgeConfidence`, `numBooks` to `GameData`; changed default autoScan/scanFrequency |
+| `src/lib/polyedge.ts` | Updated `formatTeamWithRank()` to show full name |
+| `src/components/GameTable.tsx` | Full names, book count display, Polymarket link on signal badge, confidence indicator |
 

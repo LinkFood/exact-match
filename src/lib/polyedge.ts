@@ -35,6 +35,5 @@ export function formatTipoff(dateStr: string): string {
 }
 
 export function formatTeamWithRank(team: string, rank: number | null, abbr?: string): string {
-  const name = abbr || team;
-  return rank ? `#${rank} ${name}` : name;
+  return rank ? `#${rank} ${team}` : team;
 }

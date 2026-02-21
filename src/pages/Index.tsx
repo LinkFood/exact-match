@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { Link } from "react-router-dom";
 import { Sport, ScanResult, PricePoint, Settings } from "@/types/polyedge";
 import { loadSettings, saveSettings } from "@/lib/polyedge";
 import { scanGames, fetchPriceHistory, sendSlackAlert } from "@/lib/api";
@@ -152,6 +153,9 @@ const Index = () => {
             <h1 className="text-lg font-bold tracking-tight">PolyEdge</h1>
           </div>
           <SportTabs activeSport={activeSport} onSportChange={handleSportChange} />
+          <Link to="/tracker" className="text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors">
+            Edge Tracker
+          </Link>
         </div>
         <button
           onClick={() => setShowSettings(true)}

@@ -30,3 +30,11 @@ export async function sendSlackAlert(
   });
   if (error) throw new Error(error.message || "Slack alert failed");
 }
+
+export async function settleGames(oddsApiKey: string): Promise<any> {
+  const { data, error } = await supabase.functions.invoke("settle-games", {
+    body: { oddsApiKey },
+  });
+  if (error) throw new Error(error.message || "Settlement failed");
+  return data;
+}

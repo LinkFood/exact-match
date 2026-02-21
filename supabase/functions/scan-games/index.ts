@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -74,6 +75,7 @@ const MASCOT_SUFFIXES = [
   "Wolverines", "Wolves",
   "Zags", "Zips",
   "Heat", "Jazz", "76ers",
+  "Roos",
 ];
 
 const SCHOOL_ALIASES: Record<string, string> = {
@@ -108,15 +110,17 @@ const SCHOOL_ALIASES: Record<string, string> = {
   "st johns": "state johns",
   "saint mary's": "saint marys",
   "st. mary's": "saint marys",
-  // New aliases for matching fixes
+  // Matching fix aliases
   "uncw": "unc wilmington",
   "uncg": "unc greensboro",
   "unca": "unc asheville",
   "siue": "siu edwardsville",
   "umkc": "missouri kansas city",
+  "kansas city": "missouri kansas city",
   "penn": "pennsylvania",
   "ul monroe": "louisiana monroe",
   "se missouri": "southeast missouri",
+  "southeastern missouri state": "southeast missouri state",
   "app state": "appalachian state",
   "loyola maryland": "loyola md",
   "loyola (md)": "loyola md",
@@ -124,6 +128,9 @@ const SCHOOL_ALIASES: Record<string, string> = {
   "queens university": "queens",
   "miami (fl)": "miami",
   "miami (oh)": "miami ohio",
+  "sam houston state": "sam houston",
+  "massachusetts lowell": "umass lowell",
+  "ut arlington": "texas arlington",
   // NBA/NFL aliases
   "la lakers": "los angeles lakers",
   "la clippers": "los angeles clippers",
@@ -164,8 +171,15 @@ function normalizeSchoolName(school: string): string {
   // 6. Collapse whitespace again after removals
   n = n.replace(/\s+/g, " ").trim();
 
-  // 7. Alias lookup
-  return SCHOOL_ALIASES[n] || n;
+  // 7. Alias lookup — check exact match first, then startsWith for multi-word aliases
+  if (SCHOOL_ALIASES[n]) return SCHOOL_ALIASES[n];
+  for (const [key, val] of Object.entries(SCHOOL_ALIASES)) {
+    if (n.startsWith(key + " ")) {
+      n = val + n.substring(key.length);
+      break;
+    }
+  }
+  return n;
 }
 
 function getSchoolKey(fullTeamName: string): string {
@@ -441,6 +455,48 @@ serve(async (req) => {
 
     // Sort by absolute edge
     games.sort((a: any, b: any) => Math.abs(b.edge || 0) - Math.abs(a.edge || 0));
+
+    // ── Edge logging to DB ──
+    try {
+      const supabaseAdmin = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+      );
+      const scanId = crypto.randomUUID();
+      const rows = games.map((g: any) => {
+        const hoursToTip = Math.max(
+          (new Date(g.tipoff).getTime() - Date.now()) / 3600000,
+          0
+        );
+        return {
+          scan_id: scanId,
+          game_date: todayStr,
+          odds_api_game_id: g.id,
+          poly_event_id: g.polyMarketSlug,
+          poly_slug: g.polyMarketSlug,
+          home_team: g.homeTeam,
+          away_team: g.awayTeam,
+          poly_price: g.polyPrice,
+          book_consensus: g.bookConsensus,
+          edge_pct: (g.edge || 0) * 100,
+          poly_volume: g.polyVolume,
+          num_books: g.numBooks,
+          tip_off_time: g.tipoff,
+          hours_to_tipoff: parseFloat(hoursToTip.toFixed(1)),
+          edge_team: g.polyTeam || g.awayTeam,
+          signal: g.signal,
+          book_lines: g.bookBreakdown,
+          sport,
+        };
+      });
+      if (rows.length > 0) {
+        await supabaseAdmin
+          .from("edge_scans")
+          .upsert(rows, { onConflict: "odds_api_game_id,game_date" });
+      }
+    } catch (logErr) {
+      console.error("Edge logging failed:", logErr);
+    }
 
     const polymarketOnly = polyEvents
       .filter((pe: any) => !matchedPolyIds.has(pe.id))

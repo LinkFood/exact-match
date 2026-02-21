@@ -27,121 +27,113 @@ const SPORT_CONFIG: Record<
   },
 };
 
-// Team alias map for fuzzy matching
-const TEAM_ALIASES: Record<string, string> = {
-  // NCAAB
-  "duke blue devils": "duke", duke: "duke",
-  "north carolina tar heels": "unc", "north carolina": "unc", unc: "unc", "tar heels": "unc",
-  "kentucky wildcats": "kentucky", kentucky: "kentucky",
-  "kansas jayhawks": "kansas", kansas: "kansas",
-  "gonzaga bulldogs": "gonzaga", gonzaga: "gonzaga",
-  "villanova wildcats": "villanova", villanova: "villanova",
-  "baylor bears": "baylor", baylor: "baylor",
-  "michigan wolverines": "michigan", michigan: "michigan",
-  "purdue boilermakers": "purdue", purdue: "purdue",
-  "houston cougars": "houston", houston: "houston",
-  "tennessee volunteers": "tennessee", tennessee: "tennessee",
-  "uconn huskies": "uconn", connecticut: "uconn", "connecticut huskies": "uconn", uconn: "uconn",
-  "auburn tigers": "auburn", auburn: "auburn",
-  "iowa state cyclones": "iowa state", "iowa state": "iowa state",
-  "alabama crimson tide": "alabama", alabama: "alabama",
-  "arizona wildcats": "arizona", arizona: "arizona",
-  "marquette golden eagles": "marquette", marquette: "marquette",
-  "creighton bluejays": "creighton", creighton: "creighton",
-  "texas longhorns": "texas", texas: "texas",
-  "arkansas razorbacks": "arkansas", arkansas: "arkansas",
-  "florida gators": "florida", florida: "florida",
-  "wisconsin badgers": "wisconsin", wisconsin: "wisconsin",
-  "michigan state spartans": "michigan state", "michigan state": "michigan state",
-  "st. john's red storm": "st johns", "st johns": "st johns", "saint john's": "st johns",
-  "ucla bruins": "ucla", ucla: "ucla",
-  "oregon ducks": "oregon", oregon: "oregon",
-  "clemson tigers": "clemson", clemson: "clemson",
-  "louisville cardinals": "louisville", louisville: "louisville",
-  "illinois fighting illini": "illinois", illinois: "illinois",
-  "indiana hoosiers": "indiana", indiana: "indiana",
-  "ohio state buckeyes": "ohio state", "ohio state": "ohio state",
-  "memphis tigers": "memphis", memphis: "memphis",
-  "san diego state aztecs": "san diego state", "san diego state": "san diego state", sdsu: "san diego state",
-  // NBA
-  "los angeles lakers": "lakers", "la lakers": "lakers", lakers: "lakers",
-  "los angeles clippers": "clippers", "la clippers": "clippers", clippers: "clippers",
-  "golden state warriors": "warriors", warriors: "warriors",
-  "boston celtics": "celtics", celtics: "celtics",
-  "milwaukee bucks": "bucks", bucks: "bucks",
-  "philadelphia 76ers": "76ers", "76ers": "76ers", sixers: "76ers",
-  "miami heat": "heat", heat: "heat",
-  "denver nuggets": "nuggets", nuggets: "nuggets",
-  "phoenix suns": "suns", suns: "suns",
-  "dallas mavericks": "mavericks", mavericks: "mavericks", mavs: "mavericks",
-  "new york knicks": "knicks", knicks: "knicks",
-  "brooklyn nets": "nets", nets: "nets",
-  "chicago bulls": "bulls", bulls: "bulls",
-  "toronto raptors": "raptors", raptors: "raptors",
-  "cleveland cavaliers": "cavaliers", cavaliers: "cavaliers", cavs: "cavaliers",
-  "atlanta hawks": "hawks", hawks: "hawks",
-  "sacramento kings": "kings", kings: "kings",
-  "minnesota timberwolves": "timberwolves", timberwolves: "timberwolves", wolves: "timberwolves",
-  "new orleans pelicans": "pelicans", pelicans: "pelicans",
-  "oklahoma city thunder": "thunder", thunder: "thunder", okc: "thunder",
-  "memphis grizzlies": "grizzlies", grizzlies: "grizzlies",
-  "indiana pacers": "pacers", pacers: "pacers",
-  "portland trail blazers": "blazers", blazers: "blazers", "trail blazers": "blazers",
-  "utah jazz": "jazz", jazz: "jazz",
-  "san antonio spurs": "spurs", spurs: "spurs",
-  "detroit pistons": "pistons", pistons: "pistons",
-  "charlotte hornets": "hornets", hornets: "hornets",
-  "washington wizards": "wizards", wizards: "wizards",
-  "orlando magic": "magic", magic: "magic",
-  "houston rockets": "rockets", rockets: "rockets",
-  // NFL
-  "kansas city chiefs": "chiefs", chiefs: "chiefs",
-  "buffalo bills": "bills", bills: "bills",
-  "san francisco 49ers": "49ers", "49ers": "49ers", niners: "49ers",
-  "philadelphia eagles": "eagles", eagles: "eagles",
-  "dallas cowboys": "cowboys", cowboys: "cowboys",
-  "baltimore ravens": "ravens", ravens: "ravens",
-  "detroit lions": "lions", lions: "lions",
-  "miami dolphins": "dolphins", dolphins: "dolphins",
-  "cincinnati bengals": "bengals", bengals: "bengals",
-  "jacksonville jaguars": "jaguars", jaguars: "jaguars",
-  "pittsburgh steelers": "steelers", steelers: "steelers",
-  "cleveland browns": "browns", browns: "browns",
-  "green bay packers": "packers", packers: "packers",
-  "seattle seahawks": "seahawks", seahawks: "seahawks",
-  "new york giants": "giants", giants: "giants",
-  "new york jets": "jets", jets: "jets",
-  "los angeles rams": "rams", rams: "rams",
-  "los angeles chargers": "chargers", chargers: "chargers",
-  "minnesota vikings": "vikings", vikings: "vikings",
-  "tampa bay buccaneers": "buccaneers", buccaneers: "buccaneers", bucs: "buccaneers",
-  "new england patriots": "patriots", patriots: "patriots",
-  "arizona cardinals": "cardinals", cardinals: "cardinals",
-  "las vegas raiders": "raiders", raiders: "raiders",
-  "denver broncos": "broncos", broncos: "broncos",
-  "tennessee titans": "titans", titans: "titans",
-  "indianapolis colts": "colts", colts: "colts",
-  "carolina panthers": "panthers", panthers: "panthers",
-  "atlanta falcons": "falcons", falcons: "falcons",
-  "new orleans saints": "saints", saints: "saints",
-  "chicago bears": "bears", bears: "bears",
-  "washington commanders": "commanders", commanders: "commanders",
-  "houston texans": "texans", texans: "texans",
+// ── Mascot suffixes for school-name extraction (multi-word first) ──
+const MASCOT_SUFFIXES = [
+  "Demon Deacons", "Blue Devils", "Tar Heels", "Red Storm", "Red Raiders",
+  "Golden Eagles", "Runnin' Rebels", "Running Rebels", "Screaming Eagles",
+  "Yellow Jackets", "Nittany Lions", "Crimson Tide", "Fighting Irish",
+  "Golden Gophers", "Horned Frogs", "Scarlet Knights", "Mean Green",
+  "Red Foxes", "Blue Hens", "Golden Grizzlies", "River Hawks",
+  "Great Danes", "Black Bears", "Purple Aces", "Ragin' Cajuns",
+  "Fighting Illini", "Fighting Hawks", "Golden Flashes", "Blue Hose",
+  "Runnin' Bulldogs", "Red Flash", "Golden Panthers", "Blue Raiders",
+  "Trail Blazers",
+  // Single-word
+  "Aggies", "Anteaters", "Aztecs", "Badgers", "Bears", "Bearcats", "Beavers",
+  "Bengals", "Billikens", "Bison", "Blazers", "Boilermakers", "Bonnies",
+  "Braves", "Bruins", "Buckeyes", "Buccaneers", "Bulldogs", "Bulls",
+  "Cardinals", "Catamounts", "Cavaliers", "Celtics", "Chanticleers",
+  "Chargers", "Chiefs", "Clippers", "Colonials", "Colts", "Commanders",
+  "Commodores", "Cougars", "Cowboys", "Crimson", "Crusaders", "Cyclones",
+  "Dolphins", "Dons", "Dragons", "Ducks", "Dukes",
+  "Eagles", "Engineers", "Explorers",
+  "Falcons", "Flames", "Flyers", "Friars",
+  "Gaels", "Gators", "Giants", "Governors", "Grizzlies",
+  "Hatters", "Hawks", "Highlanders", "Hilltoppers", "Hokies", "Hoosiers",
+  "Hornets", "Huskies",
+  "Islanders",
+  "Jaguars", "Jayhawks", "Jays", "Jets",
+  "Kangaroos", "Kings", "Knicks", "Knights",
+  "Lakers", "Lancers", "Leopards", "Lions", "Lobos", "Longhorns", "Lumberjacks",
+  "Magic", "Mastodons", "Mavericks", "Miners", "Mocs", "Monarchs",
+  "Mountaineers", "Musketeers", "Mustangs",
+  "Nets", "Norse", "Nuggets",
+  "Ospreys", "Owls",
+  "Pacers", "Packers", "Paladins", "Panthers", "Patriots", "Peacocks",
+  "Pelicans", "Penguins", "Phoenix", "Pilots", "Pioneers", "Pirates",
+  "Pistons", "Pride", "Privateers",
+  "Racers", "Raiders", "Rams", "Raptors", "Rattlers", "Ravens",
+  "Razorbacks", "Rebels", "Retrievers", "Roadrunners", "Rockets", "Royals",
+  "Salukis", "Saints", "Seahawks", "Seawolves", "Seminoles", "Shockers",
+  "Skyhawks", "Sooners", "Spartans", "Spiders", "Spurs", "Stags",
+  "Steelers", "Suns", "Sycamores",
+  "Terps", "Terrapins", "Terriers", "Texans", "Thunder", "Thunderbirds",
+  "Tigers", "Timberwolves", "Titans", "Tommies", "Toreros", "Trojans",
+  "Utes", "Vandals", "Vikings", "Volunteers", "Vulcans",
+  "Warhawks", "Warriors", "Waves", "Wildcats", "Wizards", "Wolfpack",
+  "Wolverines", "Wolves",
+  "Zags", "Zips",
+  // NBA/NFL city-based (kept as fallback)
+  "Heat", "Jazz", "76ers",
+];
+
+const SCHOOL_ALIASES: Record<string, string> = {
+  "uconn": "connecticut",
+  "ole miss": "mississippi",
+  "lsu": "louisiana state",
+  "smu": "southern methodist",
+  "tcu": "texas christian",
+  "ucf": "central florida",
+  "unlv": "nevada las vegas",
+  "utep": "texas el paso",
+  "vcu": "virginia commonwealth",
+  "fiu": "florida international",
+  "fau": "florida atlantic",
+  "unc": "north carolina",
+  "pitt": "pittsburgh",
+  "cal": "california",
+  "usc": "southern california",
+  "umass": "massachusetts",
+  "uab": "alabama birmingham",
+  "utsa": "texas san antonio",
+  "siu": "southern illinois",
+  "niu": "northern illinois",
+  "wku": "western kentucky",
+  "ecu": "east carolina",
+  "jmu": "james madison",
+  "odu": "old dominion",
+  "byu": "brigham young",
+  "st. john's": "st johns",
+  "saint john's": "st johns",
+  "st johns": "st johns",
+  "saint mary's": "saint marys",
+  "st. mary's": "saint marys",
+  // NBA/NFL aliases
+  "la lakers": "los angeles lakers",
+  "la clippers": "los angeles clippers",
+  "okc": "oklahoma city",
+  "niners": "san francisco",
 };
 
-function normalizeTeamName(name: string): string {
-  const lower = name.toLowerCase().trim();
-  if (TEAM_ALIASES[lower]) return TEAM_ALIASES[lower];
-  // Try progressively shorter matches
-  const words = lower.split(" ");
-  for (let i = words.length - 1; i >= 1; i--) {
-    const partial = words.slice(0, i).join(" ");
-    if (TEAM_ALIASES[partial]) return TEAM_ALIASES[partial];
+function extractSchoolName(fullName: string): string {
+  let name = fullName.trim();
+  const lower = name.toLowerCase();
+  for (const mascot of MASCOT_SUFFIXES) {
+    if (lower.endsWith(mascot.toLowerCase())) {
+      name = name.substring(0, name.length - mascot.length).trim();
+      break;
+    }
   }
-  // Last word as fallback
-  const last = words[words.length - 1];
-  if (TEAM_ALIASES[last]) return TEAM_ALIASES[last];
-  return lower.replace(/\s+/g, " ");
+  return name.toLowerCase().trim();
+}
+
+function normalizeSchoolName(school: string): string {
+  const lower = school.toLowerCase().trim();
+  return SCHOOL_ALIASES[lower] || lower;
+}
+
+function getSchoolKey(fullTeamName: string): string {
+  return normalizeSchoolName(extractSchoolName(fullTeamName));
 }
 
 function americanToImpliedProbability(odds: number): number {
@@ -166,11 +158,11 @@ serve(async (req) => {
       );
     }
 
-    // Fetch all 3 APIs in parallel
+    // Fetch all 3 APIs in parallel (newest Poly events first)
     const [espnRes, polyRes, oddsRes] = await Promise.all([
       fetch(config.espn).then((r) => r.json()).catch(() => ({ events: [] })),
       fetch(
-        `https://gamma-api.polymarket.com/events?series_id=${config.seriesId}&tag_id=100639&active=true&closed=false&order=startTime&ascending=true&limit=100`
+        `https://gamma-api.polymarket.com/events?series_id=${config.seriesId}&tag_id=100639&active=true&closed=false&order=startTime&ascending=false&limit=100`
       )
         .then((r) => r.json())
         .catch(() => []),
@@ -188,80 +180,76 @@ serve(async (req) => {
     ]);
 
     const espnEvents = espnRes.events || [];
-    const polyEvents = Array.isArray(polyRes) ? polyRes : [];
+    const allPolyEvents = Array.isArray(polyRes) ? polyRes : [];
     const oddsGames = Array.isArray(oddsRes.data) ? oddsRes.data : [];
 
-    console.log("ESPN events:", espnEvents.length, espnEvents.map((e: any) => e.shortName || e.name));
-    console.log("Polymarket events:", polyEvents.length, polyEvents.map((e: any) => e.title));
-    console.log("Odds API games:", oddsGames.length, oddsGames.map((g: any) => g.away_team + " vs " + g.home_team));
+    // ── Fix 1: Date filter — kill zombie markets ──
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
 
-    const games = [];
+    const polyEvents = allPolyEvents.filter((event: any) => {
+      const dateStr = event.endDate || event.startDate;
+      if (!dateStr) return false;
+      const eventDate = new Date(dateStr);
+      return eventDate >= today && eventDate < tomorrow;
+    });
+
+    console.log(`Poly events: ${allPolyEvents.length} total, ${polyEvents.length} after date filter (today only)`);
+    console.log("ESPN events:", espnEvents.length);
+    console.log("Odds API games:", oddsGames.length);
+
+    const games: any[] = [];
     const unmatchedBooks: string[] = [];
     const matchedPolyIds = new Set<string>();
-    const matchedOddsIds = new Set<string>();
 
     for (const oddsGame of oddsGames) {
-      matchedOddsIds.add(oddsGame.id);
-      const normHome = normalizeTeamName(oddsGame.home_team);
-      const normAway = normalizeTeamName(oddsGame.away_team);
+      const oddsHomeKey = getSchoolKey(oddsGame.home_team);
+      const oddsAwayKey = getSchoolKey(oddsGame.away_team);
 
-      // Find matching Polymarket event
-      let polyMatch = null;
+      // ── Fix 2: School-name matching ──
+      let polyMatch: any = null;
       for (const pe of polyEvents) {
-        const title = pe.title?.toLowerCase() || "";
-        const titleNorm = normalizeTeamName(title);
-        if (
-          (title.includes(normHome) || title.includes(normAway)) &&
-          (title.includes(normHome) || title.includes(normAway))
-        ) {
-          // Check both teams are referenced
-          const hasHome = title.includes(normHome) || titleNorm.includes(normHome);
-          const hasAway = title.includes(normAway) || titleNorm.includes(normAway);
-          if (hasHome && hasAway) {
-            polyMatch = pe;
-            matchedPolyIds.add(pe.id);
-            break;
-          }
-        }
-        // Try matching individual team names in title
-        const titleWords = title.split(/\s+vs\.?\s+|\s+v\.?\s+/);
-        if (titleWords.length === 2) {
-          const t1 = normalizeTeamName(titleWords[0]);
-          const t2 = normalizeTeamName(titleWords[1]);
-          if (
-            (t1 === normHome && t2 === normAway) ||
-            (t1 === normAway && t2 === normHome)
-          ) {
-            polyMatch = pe;
-            matchedPolyIds.add(pe.id);
-            break;
-          }
+        const title = pe.title || "";
+        const vsSplit = title.split(/\s+vs\.?\s+/i);
+        if (vsSplit.length !== 2) continue;
+
+        const polySchool1 = getSchoolKey(vsSplit[0]);
+        const polySchool2 = getSchoolKey(vsSplit[1]);
+
+        const match1 = polySchool1 === oddsHomeKey && polySchool2 === oddsAwayKey;
+        const match2 = polySchool1 === oddsAwayKey && polySchool2 === oddsHomeKey;
+
+        if (match1 || match2) {
+          polyMatch = pe;
+          matchedPolyIds.add(pe.id);
+          break;
         }
       }
 
-      // Find matching ESPN event
-      let espnMatch = null;
+      // Find matching ESPN event (also using school-name matching)
+      let espnMatch: any = null;
       for (const ev of espnEvents) {
         const comps = ev.competitions?.[0]?.competitors || [];
         if (comps.length >= 2) {
-          const names = comps.map((c: any) =>
-            normalizeTeamName(c.team?.displayName || "")
+          const keys = comps.map((c: any) =>
+            getSchoolKey(c.team?.displayName || "")
           );
-          if (names.includes(normHome) && names.includes(normAway)) {
+          if (keys.includes(oddsHomeKey) && keys.includes(oddsAwayKey)) {
             espnMatch = ev;
             break;
           }
         }
       }
 
-      // Calculate book consensus
+      // Calculate book consensus (for away team)
       const bookBreakdown: any[] = [];
       for (const bm of oddsGame.bookmakers || []) {
         const h2h = bm.markets?.find((m: any) => m.key === "h2h");
         if (!h2h) continue;
-        // Find away team odds (the team Polymarket YES usually references)
         const awayOutcome = h2h.outcomes?.find(
-          (o: any) => normalizeTeamName(o.name) === normAway
+          (o: any) => getSchoolKey(o.name) === oddsAwayKey
         );
         if (awayOutcome) {
           bookBreakdown.push({
@@ -278,7 +266,7 @@ serve(async (req) => {
             bookBreakdown.length
           : 0;
 
-      // Parse Polymarket data
+      // ── Fix 3: Side alignment — correct team-to-price mapping ──
       let polyPrice: number | null = null;
       let polyTeam: string | null = null;
       let polyVolume: number | null = null;
@@ -290,13 +278,32 @@ serve(async (req) => {
         try {
           const prices = JSON.parse(market.outcomePrices || "[]");
           const tokens = JSON.parse(market.clobTokenIds || "[]");
-          polyPrice = parseFloat(prices[0]) || null;
-          clobTokenId = tokens[0] || null;
           polyVolume = parseFloat(market.volume) || null;
           polyMarketSlug = polyMatch.slug || null;
-          // Determine which team YES represents (first named in title)
-          const titleParts = (polyMatch.title || "").split(/\s+vs\.?\s+|\s+v\.?\s+/);
-          polyTeam = titleParts[0]?.trim() || oddsGame.away_team;
+
+          // Determine which outcome index corresponds to the away team
+          const titleParts = (polyMatch.title || "").split(/\s+vs\.?\s+/i);
+          if (titleParts.length === 2) {
+            const polySchool1 = getSchoolKey(titleParts[0]);
+            // polySchool1 = first team in Poly title → prices[0] / tokens[0]
+            // polySchool2 = second team in Poly title → prices[1] / tokens[1]
+
+            let awayIdx: number;
+            if (polySchool1 === oddsAwayKey) {
+              awayIdx = 0; // First Poly team IS the away team
+            } else {
+              awayIdx = 1; // Second Poly team is the away team
+            }
+
+            polyPrice = parseFloat(prices[awayIdx]) || null;
+            clobTokenId = tokens[awayIdx] || null;
+            polyTeam = titleParts[awayIdx]?.trim() || oddsGame.away_team;
+          } else {
+            // Fallback: can't parse title
+            polyPrice = parseFloat(prices[0]) || null;
+            clobTokenId = tokens[0] || null;
+            polyTeam = oddsGame.away_team;
+          }
         } catch {
           // parse errors
         }
@@ -334,13 +341,13 @@ serve(async (req) => {
         tipoff = espnMatch.date || tipoff;
         const comps = espnMatch.competitions?.[0]?.competitors || [];
         for (const c of comps) {
-          const cn = normalizeTeamName(c.team?.displayName || "");
+          const ck = getSchoolKey(c.team?.displayName || "");
           const rank = c.curatedRank?.current;
           const abbr = c.team?.abbreviation || "";
-          if (cn === normHome) {
+          if (ck === oddsHomeKey) {
             homeRank = rank && rank <= 25 ? rank : null;
             homeAbbr = abbr;
-          } else if (cn === normAway) {
+          } else if (ck === oddsAwayKey) {
             awayRank = rank && rank <= 25 ? rank : null;
             awayAbbr = abbr;
           }
@@ -381,7 +388,7 @@ serve(async (req) => {
     }
 
     // Sort by absolute edge
-    games.sort((a, b) => Math.abs(b.edge || 0) - Math.abs(a.edge || 0));
+    games.sort((a: any, b: any) => Math.abs(b.edge || 0) - Math.abs(a.edge || 0));
 
     const polymarketOnly = polyEvents
       .filter((pe: any) => !matchedPolyIds.has(pe.id))
@@ -394,8 +401,8 @@ serve(async (req) => {
         sport,
         scannedAt: new Date().toISOString(),
         oddsApiCreditsRemaining: oddsRes.creditsRemaining,
-        gamesMatched: games.filter((g) => g.matchConfidence !== "none").length,
-        gamesUnmatched: games.filter((g) => g.matchConfidence === "none").length,
+        gamesMatched: games.length,
+        gamesUnmatched: unmatchedBooks.length,
       },
     };
 

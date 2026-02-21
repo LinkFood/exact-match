@@ -26,6 +26,7 @@ export function GameTable({
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>("edge");
   const [hideFair, setHideFair] = useState(false);
+  const [volumeFilter, setVolumeFilter] = useState<number>(0);
 
   const filtered = games.filter((g) => {
     if (hideFair && (Math.abs(g.edge || 0) * 100) < edgeThreshold) return false;
@@ -108,6 +109,16 @@ export function GameTable({
           />
           Hide fair-priced
         </label>
+        <select
+          value={volumeFilter}
+          onChange={(e) => setVolumeFilter(Number(e.target.value))}
+          className="text-xs bg-secondary border border-border rounded px-2 py-1 text-foreground"
+        >
+          <option value={0}>All Volume</option>
+          <option value={1000}>$1K+</option>
+          <option value={5000}>$5K+</option>
+          <option value={10000}>$10K+</option>
+        </select>
         <span className="text-xs text-muted-foreground">
           {sorted.length} game{sorted.length !== 1 ? "s" : ""}
         </span>
@@ -141,6 +152,7 @@ export function GameTable({
           const isEdge = edgeAbs >= edgeThreshold;
           const isBuy = game.signal === "BUY_YES";
           const isSell = game.signal === "BUY_NO";
+          const isBelowVolFilter = volumeFilter > 0 && (game.polyVolume || 0) < volumeFilter;
 
           let rowBg = "";
           if (isEdge && isBuy) rowBg = "bg-edge-green-bg";
@@ -150,7 +162,7 @@ export function GameTable({
             <div key={game.id}>
               <div
                 onClick={() => handleRowClick(game)}
-                className={`grid grid-cols-[2fr_80px_80px_80px_80px_140px_80px_40px] gap-2 px-4 py-3 items-center cursor-pointer hover:bg-[hsl(var(--card-hover))] transition-colors ${rowBg}`}
+                className={`grid grid-cols-[2fr_80px_80px_80px_80px_140px_80px_40px] gap-2 px-4 py-3 items-center cursor-pointer hover:bg-[hsl(var(--card-hover))] transition-colors ${rowBg} ${isBelowVolFilter ? "opacity-40" : ""}`}
               >
                 {/* Teams */}
                 <div className="flex items-center gap-2 min-w-0">

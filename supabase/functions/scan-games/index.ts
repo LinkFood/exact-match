@@ -183,22 +183,9 @@ serve(async (req) => {
     const allPolyEvents = Array.isArray(polyRes) ? polyRes : [];
     const oddsGames = Array.isArray(oddsRes.data) ? oddsRes.data : [];
 
-    // ── Fix 1: Date filter — kill zombie markets ──
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    const polyEvents = allPolyEvents;
 
-    const polyEvents = allPolyEvents.filter((event: any) => {
-      const dateStr = event.endDate || event.startDate;
-      if (!dateStr) return false;
-      const eventDate = new Date(dateStr);
-      return eventDate >= today && eventDate < tomorrow;
-    });
-
-    console.log(`Poly events: ${allPolyEvents.length} total, ${polyEvents.length} after date filter (today only)`);
-    console.log("ESPN events:", espnEvents.length);
-    console.log("Odds API games:", oddsGames.length);
+    console.log(`Poly events: ${polyEvents.length}, ESPN: ${espnEvents.length}, Odds API: ${oddsGames.length}`);
 
     const games: any[] = [];
     const unmatchedBooks: string[] = [];

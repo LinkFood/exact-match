@@ -8,22 +8,22 @@ const corsHeaders = {
 
 const SPORT_CONFIG: Record<
   string,
-  { espn: string; oddsKey: string; polyTag: string }
+  { espn: string; oddsKey: string; seriesId: string }
 > = {
   ncaab: {
     espn: "https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard",
     oddsKey: "basketball_ncaab",
-    polyTag: "ncaab",
+    seriesId: "39",
   },
   nba: {
     espn: "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard",
     oddsKey: "basketball_nba",
-    polyTag: "nba",
+    seriesId: "10345",
   },
   nfl: {
     espn: "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard",
     oddsKey: "americanfootball_nfl",
-    polyTag: "nfl",
+    seriesId: "10187",
   },
 };
 
@@ -170,7 +170,7 @@ serve(async (req) => {
     const [espnRes, polyRes, oddsRes] = await Promise.all([
       fetch(config.espn).then((r) => r.json()).catch(() => ({ events: [] })),
       fetch(
-        `https://gamma-api.polymarket.com/events?active=true&closed=false&limit=100&tag=${config.polyTag}`
+        `https://gamma-api.polymarket.com/events?series_id=${config.seriesId}&tag_id=100639&active=true&closed=false&order=startTime&ascending=true&limit=100`
       )
         .then((r) => r.json())
         .catch(() => []),
@@ -190,6 +190,10 @@ serve(async (req) => {
     const espnEvents = espnRes.events || [];
     const polyEvents = Array.isArray(polyRes) ? polyRes : [];
     const oddsGames = Array.isArray(oddsRes.data) ? oddsRes.data : [];
+
+    console.log("ESPN events:", espnEvents.length, espnEvents.map((e: any) => e.shortName || e.name));
+    console.log("Polymarket events:", polyEvents.length, polyEvents.map((e: any) => e.title));
+    console.log("Odds API games:", oddsGames.length, oddsGames.map((g: any) => g.away_team + " vs " + g.home_team));
 
     const games = [];
     const matchedPolyIds = new Set<string>();

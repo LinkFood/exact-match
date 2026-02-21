@@ -182,7 +182,7 @@ export function GameTable({
                 {/* Book Consensus */}
                 <span className="text-sm font-mono">
                   {game.bookConsensus > 0
-                    ? `${(game.bookConsensus * 100).toFixed(1)}%`
+                    ? `${(game.bookConsensus * 100).toFixed(1)}% (${game.bookBreakdown.length})`
                     : "—"}
                 </span>
 
@@ -200,14 +200,32 @@ export function GameTable({
                     {game.edgePercent || "—"}
                   </span>
                   {isEdge && (
-                    <span
-                      className={`text-xs px-1.5 py-0.5 rounded font-semibold ${
+                    <a
+                      href={game.polyMarketUrl || "#"}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className={`text-xs px-1.5 py-0.5 rounded font-semibold hover:opacity-80 transition-opacity ${
                         isBuy
                           ? "bg-edge-green-bg text-edge-green"
                           : "bg-edge-red-bg text-edge-red"
                       }`}
                     >
                       {isBuy ? "BUY" : "SELL"} {game.polyTeam?.split(" ").pop()}
+                    </a>
+                  )}
+                  {game.edgeConfidence !== null && game.edgeConfidence > 0 && (
+                    <span
+                      className={`text-[10px] px-1 py-0.5 rounded font-medium ${
+                        game.edgeConfidence > 0.5
+                          ? "bg-edge-green-bg text-edge-green"
+                          : game.edgeConfidence > 0.1
+                          ? "bg-chart-consensus/20 text-chart-consensus"
+                          : "bg-muted text-muted-foreground"
+                      }`}
+                      title={`Confidence: ${game.edgeConfidence.toFixed(3)}`}
+                    >
+                      {game.edgeConfidence > 0.5 ? "HIGH" : game.edgeConfidence > 0.1 ? "MED" : "LOW"}
                     </span>
                   )}
                 </div>

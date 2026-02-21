@@ -32,6 +32,8 @@ export interface GameData {
   signal: Signal;
   signalTeam: string | null;
   signalExplanation: string | null;
+  edgeConfidence: number | null;
+  numBooks: number;
 }
 
 export interface ScanResult {
@@ -68,8 +70,8 @@ export const DEFAULT_SETTINGS: Settings = {
   oddsApiKey: "",
   slackWebhookUrl: "",
   edgeThreshold: 3,
-  autoScan: false,
-  scanFrequency: 30,
+  autoScan: true,
+  scanFrequency: 1,
   sportsToMonitor: ["ncaab", "nba", "nfl"],
   minVolume: 0,
 };

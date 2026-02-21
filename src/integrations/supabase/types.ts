@@ -14,6 +14,48 @@ export type Database = {
   }
   public: {
     Tables: {
+      alert_log: {
+        Row: {
+          alert_date: string
+          alerted_at: string
+          id: string
+          last_edge: number | null
+          poly_event_id: string
+        }
+        Insert: {
+          alert_date: string
+          alerted_at?: string
+          id?: string
+          last_edge?: number | null
+          poly_event_id: string
+        }
+        Update: {
+          alert_date?: string
+          alerted_at?: string
+          id?: string
+          last_edge?: number | null
+          poly_event_id?: string
+        }
+        Relationships: []
+      }
+      cached_odds: {
+        Row: {
+          data: Json
+          fetched_at: string
+          id: string
+        }
+        Insert: {
+          data: Json
+          fetched_at?: string
+          id: string
+        }
+        Update: {
+          data?: Json
+          fetched_at?: string
+          id?: string
+        }
+        Relationships: []
+      }
       edge_scans: {
         Row: {
           away_team: string
@@ -89,6 +131,21 @@ export type Database = {
           signal?: string | null
           sport?: string | null
           tip_off_time?: string | null
+        }
+        Relationships: []
+      }
+      scan_meta: {
+        Row: {
+          id: string
+          last_odds_fetch: string | null
+        }
+        Insert: {
+          id: string
+          last_odds_fetch?: string | null
+        }
+        Update: {
+          id?: string
+          last_odds_fetch?: string | null
         }
         Relationships: []
       }

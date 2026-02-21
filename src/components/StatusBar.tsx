@@ -52,6 +52,10 @@ export function StatusBar({
         <span className="text-muted-foreground">Last scan: {lastScan}</span>
       </div>
       <div className="flex items-center gap-4">
+        <span className="flex items-center gap-1.5 text-muted-foreground">
+          <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+          Server scanning active
+        </span>
         {meta?.oddsApiCreditsRemaining !== null && meta?.oddsApiCreditsRemaining !== undefined && (
           <span className="text-muted-foreground">
             Odds API: {meta.oddsApiCreditsRemaining}/500 credits

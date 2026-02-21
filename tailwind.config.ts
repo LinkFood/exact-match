@@ -47,6 +47,18 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        edge: {
+          green: "hsl(var(--edge-green))",
+          "green-bg": "hsl(var(--edge-green-bg))",
+          red: "hsl(var(--edge-red))",
+          "red-bg": "hsl(var(--edge-red-bg))",
+        },
+        chart: {
+          line: "hsl(var(--chart-line))",
+          green: "hsl(var(--chart-green))",
+          red: "hsl(var(--chart-red))",
+          consensus: "hsl(var(--consensus-line))",
+        },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
@@ -65,25 +77,27 @@ export default {
       },
       keyframes: {
         "accordion-down": {
-          from: {
-            height: "0",
-          },
-          to: {
-            height: "var(--radix-accordion-content-height)",
-          },
+          from: { height: "0" },
+          to: { height: "var(--radix-accordion-content-height)" },
         },
         "accordion-up": {
-          from: {
-            height: "var(--radix-accordion-content-height)",
-          },
-          to: {
-            height: "0",
-          },
+          from: { height: "var(--radix-accordion-content-height)" },
+          to: { height: "0" },
+        },
+        "pulse-green": {
+          "0%, 100%": { boxShadow: "0 0 0 0 hsl(var(--edge-green) / 0.4)" },
+          "50%": { boxShadow: "0 0 8px 2px hsl(var(--edge-green) / 0.2)" },
+        },
+        "pulse-red": {
+          "0%, 100%": { boxShadow: "0 0 0 0 hsl(var(--edge-red) / 0.4)" },
+          "50%": { boxShadow: "0 0 8px 2px hsl(var(--edge-red) / 0.2)" },
         },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        "pulse-green": "pulse-green 2s ease-in-out infinite",
+        "pulse-red": "pulse-red 2s ease-in-out infinite",
       },
     },
   },

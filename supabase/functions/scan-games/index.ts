@@ -159,10 +159,18 @@ serve(async (req) => {
     }
 
     // Fetch all 3 APIs in parallel (newest Poly events first)
+    // Calculate date range for Polymarket filtering
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+    const endDateMin = today.toISOString();
+    const twoDaysOut = new Date(today);
+    twoDaysOut.setUTCDate(twoDaysOut.getUTCDate() + 2);
+    const endDateMax = twoDaysOut.toISOString();
+
     const [espnRes, polyRes, oddsRes] = await Promise.all([
       fetch(config.espn).then((r) => r.json()).catch(() => ({ events: [] })),
       fetch(
-        `https://gamma-api.polymarket.com/events?series_id=${config.seriesId}&tag_id=100639&active=true&closed=false&order=startTime&ascending=false&limit=100`
+        `https://gamma-api.polymarket.com/events?series_id=${config.seriesId}&active=true&closed=false&limit=200&end_date_min=${endDateMin}&end_date_max=${endDateMax}`
       )
         .then((r) => r.json())
         .catch(() => []),
@@ -183,9 +191,10 @@ serve(async (req) => {
     const allPolyEvents = Array.isArray(polyRes) ? polyRes : [];
     const oddsGames = Array.isArray(oddsRes.data) ? oddsRes.data : [];
 
-    const polyEvents = allPolyEvents;
+    const todayStr = new Date().toISOString().split('T')[0];
+    const polyEvents = allPolyEvents.filter((e: any) => e.eventDate === todayStr);
 
-    console.log(`Poly events: ${polyEvents.length}, ESPN: ${espnEvents.length}, Odds API: ${oddsGames.length}`);
+    console.log(`Poly events: ${allPolyEvents.length} fetched, ${polyEvents.length} today, ESPN: ${espnEvents.length}, Odds API: ${oddsGames.length}`);
 
     const games: any[] = [];
     const unmatchedBooks: string[] = [];

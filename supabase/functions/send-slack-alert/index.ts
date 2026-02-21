@@ -12,11 +12,13 @@ serve(async (req) => {
   }
 
   try {
-    const { webhookUrl, game } = await req.json();
+    const body = await req.json();
+    const game = body.game;
+    const webhookUrl = body.webhookUrl || Deno.env.get("SLACK_WEBHOOK_URL");
 
     if (!webhookUrl || !game) {
       return new Response(
-        JSON.stringify({ error: "webhookUrl and game are required" }),
+        JSON.stringify({ error: "webhookUrl (or SLACK_WEBHOOK_URL secret) and game are required" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
       );
     }

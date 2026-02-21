@@ -13,7 +13,7 @@ const SPORT_CONFIG: Record<
   ncaab: {
     espn: "https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard",
     oddsKey: "basketball_ncaab",
-    seriesId: "39",
+    seriesId: "10470",
   },
   nba: {
     espn: "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard",
@@ -196,6 +196,7 @@ serve(async (req) => {
     console.log("Odds API games:", oddsGames.length, oddsGames.map((g: any) => g.away_team + " vs " + g.home_team));
 
     const games = [];
+    const unmatchedBooks: string[] = [];
     const matchedPolyIds = new Set<string>();
     const matchedOddsIds = new Set<string>();
 
@@ -346,33 +347,37 @@ serve(async (req) => {
         }
       }
 
-      games.push({
-        id: oddsGame.id,
-        matchConfidence: polyMatch ? "high" : "none",
-        sport,
-        homeTeam: oddsGame.home_team,
-        awayTeam: oddsGame.away_team,
-        homeAbbr,
-        awayAbbr,
-        homeRank,
-        awayRank,
-        tipoff,
-        polyPrice,
-        polyTeam,
-        polyVolume,
-        polyMarketSlug,
-        polyMarketUrl: polyMarketSlug
-          ? `https://polymarket.com/event/${polyMarketSlug}`
-          : null,
-        clobTokenId,
-        bookConsensus,
-        bookBreakdown,
-        edge,
-        edgePercent,
-        signal,
-        signalTeam,
-        signalExplanation,
-      });
+      if (polyMatch) {
+        games.push({
+          id: oddsGame.id,
+          matchConfidence: "high",
+          sport,
+          homeTeam: oddsGame.home_team,
+          awayTeam: oddsGame.away_team,
+          homeAbbr,
+          awayAbbr,
+          homeRank,
+          awayRank,
+          tipoff,
+          polyPrice,
+          polyTeam,
+          polyVolume,
+          polyMarketSlug,
+          polyMarketUrl: polyMarketSlug
+            ? `https://polymarket.com/event/${polyMarketSlug}`
+            : null,
+          clobTokenId,
+          bookConsensus,
+          bookBreakdown,
+          edge,
+          edgePercent,
+          signal,
+          signalTeam,
+          signalExplanation,
+        });
+      } else {
+        unmatchedBooks.push(`${oddsGame.away_team} vs ${oddsGame.home_team}`);
+      }
     }
 
     // Sort by absolute edge
@@ -382,22 +387,9 @@ serve(async (req) => {
       .filter((pe: any) => !matchedPolyIds.has(pe.id))
       .map((pe: any) => pe.title || "Unknown");
 
-    const booksOnly = oddsGames
-      .filter((g: any) => {
-        const normH = normalizeTeamName(g.home_team);
-        const normA = normalizeTeamName(g.away_team);
-        return !games.find(
-          (mg) =>
-            normalizeTeamName(mg.homeTeam) === normH &&
-            normalizeTeamName(mg.awayTeam) === normA &&
-            mg.polyPrice !== null
-        );
-      })
-      .map((g: any) => `${g.away_team} vs ${g.home_team}`);
-
     const result = {
       games,
-      unmatched: { polymarketOnly, booksOnly },
+      unmatched: { polymarketOnly, booksOnly: unmatchedBooks },
       meta: {
         sport,
         scannedAt: new Date().toISOString(),

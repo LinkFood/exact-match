@@ -1,1 +1,4 @@
 project_id = "isrtocpwtrhaedusiuct"
+
+[functions.scan-edges]
+verify_jwt = false

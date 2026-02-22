@@ -207,7 +207,11 @@ serve(async (req) => {
             `https://api.the-odds-api.com/v4/sports/${config.oddsKey}/odds/?apiKey=${ODDS_API_KEY}&regions=us&markets=h2h&oddsFormat=american&bookmakers=draftkings,fanduel,betmgm,espnbet`
           );
           const oddsData = await oddsRes.json();
-          oddsGames = Array.isArray(oddsData) ? oddsData : [];
+          if (!oddsRes.ok) {
+            console.error(`Odds API error for ${sport}: status=${oddsRes.status}, body=${JSON.stringify(oddsData)}`);
+          }
+          console.log(`Odds API ${sport}: status=${oddsRes.status}, games=${Array.isArray(oddsData) ? oddsData.length : 'not-array'}`);
+          oddsGames = oddsRes.ok && Array.isArray(oddsData) ? oddsData : [];
 
           // Cache odds
           await supabase.from("cached_odds").upsert({

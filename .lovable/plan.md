@@ -1,53 +1,57 @@
 
 
-## Fix Build Errors and Apply Remaining Migrations
+## Diagnose and Fix Empty Odds API Response
 
-### 1. Fix TypeScript build errors (all 5 edge functions)
+### Problem
+The Odds API returns 0 games despite the `ODDS_API_KEY` being set. Both `scan-games` and `scan-edges` silently swallow API errors, making it impossible to tell if the key is invalid, expired, or out of credits.
 
-Each function has a `catch (error)` block that accesses `error.message` without typing. Fix by changing to `catch (error: any)` or casting in all 5 files:
+### Step 1: Add debug logging to `scan-games`
+In `supabase/functions/scan-games/index.ts`, modify the Odds API fetch (around line 242) to log the HTTP status code and response body when no games are returned:
 
-- `supabase/functions/price-history/index.ts` (line 33)
-- `supabase/functions/scan-edges/index.ts` (line 449)
-- `supabase/functions/scan-games/index.ts` (line 537)
-- `supabase/functions/send-slack-alert/index.ts` (line 60)
-- `supabase/functions/settle-games/index.ts` (line 246)
-
-### 2. Apply column widening migration
-
-Run SQL to widen `edge_pct` from `DECIMAL(5,3)` to `DECIMAL(7,3)`:
-
-```sql
-ALTER TABLE edge_scans ALTER COLUMN edge_pct TYPE DECIMAL(7,3);
+```typescript
+// Change the odds fetch to log status and error details
+oddsApiKey
+  ? fetch(...)
+      .then(async (r) => {
+        const remaining = r.headers.get("x-requests-remaining");
+        const data = await r.json();
+        if (!r.ok) {
+          console.error(`Odds API error: status=${r.status}, body=${JSON.stringify(data)}`);
+        }
+        console.log(`Odds API: status=${r.status}, remaining=${remaining}, games=${Array.isArray(data) ? data.length : 'not-array'}`);
+        return { data: r.ok ? data : [], creditsRemaining: remaining ? parseInt(remaining) : null };
+      })
 ```
 
-### 3. Add settle-games daily cron job
+### Step 2: Add debug logging to `scan-edges`
+In `supabase/functions/scan-edges/index.ts`, similarly log the Odds API response status and body around line 175:
 
-Schedule `settle-games` to run daily at 6 AM UTC. This uses hardcoded project URL and anon key (since `current_setting()` is not available):
-
-```sql
-SELECT cron.schedule(
-  'settle-games-daily',
-  '0 6 * * *',
-  $$
-  SELECT net.http_post(
-    url := 'https://isrtocpwtrhaedusiuct.supabase.co/functions/v1/settle-games',
-    headers := '{"Content-Type": "application/json", "Authorization": "Bearer <anon_key>"}'::jsonb,
-    body := '{}'::jsonb
-  ) as request_id;
-  $$
-);
+```typescript
+const oddsRes = await fetch(`https://api.the-odds-api.com/v4/sports/...`);
+const oddsData = await oddsRes.json();
+if (!oddsRes.ok) {
+  console.error(`Odds API error for ${sport}: status=${oddsRes.status}, body=${JSON.stringify(oddsData)}`);
+}
+console.log(`Odds API ${sport}: status=${oddsRes.status}, games=${Array.isArray(oddsData) ? oddsData.length : 'not-array'}`);
 ```
 
-### 4. Skip duplicate migration
+### Step 3: Deploy and test
+After deploying the updated functions, trigger a manual scan to see the actual Odds API response in the logs. This will reveal whether:
+- The key is invalid (401 response)
+- Credits are exhausted (402/429 response)
+- The sport key is wrong (404 response)
+- There are genuinely no games (200 with empty array)
 
-Migration `20260222000002_pg_cron_scan_edges.sql` is already applied -- the `scan-edges-every-5-min` cron job is already running. This migration will be skipped to avoid conflicts.
+### Step 4: Fix based on findings
+- If the key is invalid/expired: update the secret with a valid key
+- If credits are exhausted: the user needs to get more credits or wait for the monthly reset
+- If the API returns data successfully: investigate the matching logic
 
-### Summary
+### Technical Details
 
-| Step | What | Method |
-|------|------|--------|
-| 1 | Fix `error.message` type errors in 5 edge functions | Code edit (`catch (error: any)`) |
-| 2 | Widen `edge_pct` column | SQL migration |
-| 3 | Schedule settle-games daily cron | SQL insert (project-specific) |
-| 4 | Skip scan-edges cron migration | Already active |
+| File | Change |
+|------|--------|
+| `supabase/functions/scan-games/index.ts` | Add HTTP status + error body logging to Odds API fetch (lines 242-251) |
+| `supabase/functions/scan-edges/index.ts` | Add HTTP status + error body logging to Odds API fetch (lines 170-180) |
 
+No database changes needed. This is purely diagnostic logging to understand why the Odds API returns empty results.

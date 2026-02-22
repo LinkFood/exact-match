@@ -245,9 +245,13 @@ serve(async (req) => {
             .then(async (r) => {
               const remaining = r.headers.get("x-requests-remaining");
               const data = await r.json();
-              return { data, creditsRemaining: remaining ? parseInt(remaining) : null };
+              if (!r.ok) {
+                console.error(`Odds API error: status=${r.status}, body=${JSON.stringify(data)}`);
+              }
+              console.log(`Odds API: status=${r.status}, remaining=${remaining}, games=${Array.isArray(data) ? data.length : 'not-array'}`);
+              return { data: r.ok ? data : [], creditsRemaining: remaining ? parseInt(remaining) : null };
             })
-            .catch(() => ({ data: [], creditsRemaining: null }))
+            .catch((err: any) => { console.error("Odds API fetch exception:", err); return { data: [], creditsRemaining: null }; })
         : { data: [], creditsRemaining: null },
     ]);
 

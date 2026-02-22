@@ -27,16 +27,20 @@ const EdgeTracker = () => {
   }, []);
 
   async function fetchStats() {
-    const todayStr = new Date().toISOString().split("T")[0];
+    const now = new Date();
+    const todayStr = now.toISOString().split("T")[0];
+    const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const yesterdayStr = yesterday.toISOString().split("T")[0];
 
-    const [totalRes, settledRes, winsRes, todayRes] = await Promise.all([
+    const [totalRes, settledRes, winsRes, pushesRes, todayRes] = await Promise.all([
       supabase.from("edge_scans").select("id", { count: "exact", head: true }),
       supabase.from("edge_scans").select("id", { count: "exact", head: true }).not("result", "is", null),
       supabase.from("edge_scans").select("id", { count: "exact", head: true }).eq("edge_team_won", true),
-      supabase.from("edge_scans").select("id", { count: "exact", head: true }).eq("game_date", todayStr),
+      supabase.from("edge_scans").select("*", { count: "exact", head: true }).eq("result", "push"),
+      supabase.from("edge_scans").select("id", { count: "exact", head: true }).gte("game_date", yesterdayStr).lte("game_date", todayStr),
     ]);
 
-    const queryError = totalRes.error || settledRes.error || winsRes.error || todayRes.error;
+    const queryError = totalRes.error || settledRes.error || winsRes.error || pushesRes.error || todayRes.error;
     if (queryError) {
       toast({ title: "Failed to load stats", description: queryError.message, variant: "destructive" });
       return;
@@ -45,13 +49,14 @@ const EdgeTracker = () => {
     const total = totalRes.count || 0;
     const settled = settledRes.count || 0;
     const wins = winsRes.count || 0;
+    const pushes = pushesRes.count || 0;
 
     setStats({
       total,
       settled,
       pending: total - settled,
       wins,
-      losses: settled - wins,
+      losses: settled - wins - pushes,
       todayEdges: todayRes.count || 0,
     });
   }

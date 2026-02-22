@@ -80,6 +80,10 @@ const Index = () => {
   );
 
   const handleRefresh = () => {
+    if (isScanningRef.current) {
+      toast({ title: "Scan in progress", description: "Please wait for the current scan to finish" });
+      return;
+    }
     // Clear cache for current sport
     delete scanCacheRef.current[activeSport];
     doScan(activeSport);

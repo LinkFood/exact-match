@@ -189,8 +189,8 @@ function normalizeSchoolName(school: string): string {
     }
   }
 
-  // 7. "st" / "st." → "state" — only runs if no alias matched
-  n = n.replace(/\bst\.?\b/g, "state");
+  // 7. "st" / "st." → "saint" — only runs if no alias matched
+  n = n.replace(/\bst\.?\b/g, "saint");
 
   return n;
 }
@@ -226,7 +226,9 @@ serve(async (req) => {
     // Calculate date range for Polymarket filtering
     const today = new Date();
     today.setUTCHours(0, 0, 0, 0);
-    const endDateMin = today.toISOString();
+    // Start from yesterday to catch evening ET games that are "tomorrow" in UTC
+    const yesterdayStart = new Date(today.getTime() - 24 * 60 * 60 * 1000);
+    const endDateMin = yesterdayStart.toISOString();
     const twoDaysOut = new Date(today);
     twoDaysOut.setUTCDate(twoDaysOut.getUTCDate() + 2);
     const endDateMax = twoDaysOut.toISOString();
@@ -259,8 +261,15 @@ serve(async (req) => {
     const allPolyEvents = Array.isArray(polyRes) ? polyRes : [];
     const oddsGames = Array.isArray(oddsRes.data) ? oddsRes.data : [];
 
-    const todayStr = new Date().toISOString().split('T')[0];
-    const polyEvents = allPolyEvents.filter((e: any) => e.eventDate === todayStr);
+    const now = new Date();
+    const todayStr = now.toISOString().split('T')[0];
+    // Also include yesterday to catch evening ET games that are "tomorrow" in UTC
+    const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const yesterdayStr = yesterday.toISOString().split('T')[0];
+    const polyEvents = allPolyEvents.filter((e: any) => {
+      const ed = (e.eventDate || "");
+      return ed.startsWith(todayStr) || ed.startsWith(yesterdayStr);
+    });
 
     console.log(`Poly events: ${allPolyEvents.length} fetched, ${polyEvents.length} today, ESPN: ${espnEvents.length}, Odds API: ${oddsGames.length}`);
 

@@ -28,12 +28,10 @@ export function GameTable({
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>("edge");
   const [hideFair, setHideFair] = useState(false);
-  const [volumeFilter, setVolumeFilter] = useState<number>(0);
 
   const filtered = games.filter((g) => {
     if (hideFair && (Math.abs(g.edge || 0) * 100) < edgeThreshold) return false;
     if (minVolume > 0 && (g.polyVolume || 0) < minVolume) return false;
-    if (volumeFilter > 0 && (g.polyVolume || 0) < volumeFilter) return false;
     return true;
   });
 
@@ -99,6 +97,14 @@ export function GameTable({
     );
   }
 
+  if (games.length > 0 && sorted.length === 0) {
+    return (
+      <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">
+        All games hidden by current filters
+      </div>
+    );
+  }
+
   return (
     <div className="flex-1 overflow-auto">
       {/* Filter controls */}
@@ -112,16 +118,6 @@ export function GameTable({
           />
           Hide fair-priced
         </label>
-        <select
-          value={volumeFilter}
-          onChange={(e) => setVolumeFilter(Number(e.target.value))}
-          className="text-xs bg-secondary border border-border rounded px-2 py-1 text-foreground"
-        >
-          <option value={0}>All Volume</option>
-          <option value={1000}>$1K+</option>
-          <option value={5000}>$5K+</option>
-          <option value={10000}>$10K+</option>
-        </select>
         <span className="text-xs text-muted-foreground">
           {sorted.length} game{sorted.length !== 1 ? "s" : ""}
         </span>

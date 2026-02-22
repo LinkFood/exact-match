@@ -114,8 +114,11 @@ export function SettingsPanel({ settings, onSave, onClose }: SettingsPanelProps)
                 Send test alert
               </button>
             </div>
+            <p className="text-xs text-amber-500">
+              Note: Production alerts use the SLACK_WEBHOOK_URL set in Supabase edge function secrets, not this URL.
+            </p>
             <p className="text-xs text-muted-foreground">
-              ⚡ Alerts run server-side every 5 minutes, even when browser is closed. Edges ≥3% with $1K+ volume trigger alerts.
+              ⚡ Alerts run server-side every 5 minutes, even when browser is closed. Edges ≥3% with $100+ volume trigger alerts.
             </p>
           </div>
 

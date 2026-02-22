@@ -117,8 +117,8 @@ function normalizeSchoolName(school: string): string {
       return n;
     }
   }
-  // "st" / "st." → "state" — only runs if no alias matched
-  n = n.replace(/\bst\.?\b/g, "state");
+  // "st" / "st." → "saint" — only runs if no alias matched
+  n = n.replace(/\bst\.?\b/g, "saint");
   return n;
 }
 
@@ -145,7 +145,7 @@ serve(async (req) => {
     const ODDS_API_KEY = Deno.env.get("ODDS_API_KEY");
     const SLACK_WEBHOOK_URL = Deno.env.get("SLACK_WEBHOOK_URL");
     const ALERT_MIN_EDGE = 3.0;
-    const ALERT_MIN_VOLUME = 1000;
+    const ALERT_MIN_VOLUME = 100;
     const ODDS_CACHE_MINUTES = 30;
 
     if (!ODDS_API_KEY) {
@@ -155,10 +155,16 @@ serve(async (req) => {
       });
     }
 
-    const todayStr = new Date().toISOString().split("T")[0];
+    const now = new Date();
+    const todayStr = now.toISOString().split("T")[0];
+    // Also include yesterday to catch evening ET games that are "tomorrow" in UTC
+    const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const yesterdayStr = yesterday.toISOString().split("T")[0];
     const today = new Date();
     today.setUTCHours(0, 0, 0, 0);
-    const endDateMin = today.toISOString();
+    // Start from yesterday to catch evening ET games
+    const yesterdayStart = new Date(today.getTime() - 24 * 60 * 60 * 1000);
+    const endDateMin = yesterdayStart.toISOString();
     const twoDaysOut = new Date(today);
     twoDaysOut.setUTCDate(twoDaysOut.getUTCDate() + 2);
     const endDateMax = twoDaysOut.toISOString();
@@ -174,7 +180,10 @@ serve(async (req) => {
         );
         const allPoly = await polyRes.json();
         polyEvents = Array.isArray(allPoly)
-          ? allPoly.filter((e: any) => e.eventDate === todayStr)
+          ? allPoly.filter((e: any) => {
+              const ed = (e.eventDate || "");
+              return ed.startsWith(todayStr) || ed.startsWith(yesterdayStr);
+            })
           : [];
       } catch (e) {
         console.error(`Poly fetch failed for ${sport}:`, e);
@@ -389,7 +398,7 @@ serve(async (req) => {
           const { data: existing } = await supabase
             .from("alert_log")
             .select("id, last_edge")
-            .eq("poly_event_id", g.poly_event_id || g.odds_api_game_id)
+            .eq("poly_event_id", g.odds_api_game_id)
             .eq("alert_date", todayStr)
             .maybeSingle();
 
@@ -409,10 +418,10 @@ serve(async (req) => {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                   text:
-                    `🚨 *PolyEdge Alert* — ${g.edge_pct > 0 ? "+" : ""}${absEdge.toFixed(1)}% Edge\n\n` +
+                    `🚨 *PolyEdge Alert* — ${g.edge_pct > 0 ? "+" : ""}${g.edge_pct.toFixed(1)}% Edge\n\n` +
                     `*${g.away_team} vs ${g.home_team}*\n` +
                     `📊 Poly: ${Math.round((g.poly_price || 0) * 100)}¢ | Books: ${((g.book_consensus || 0) * 100).toFixed(1)}% (${g.num_books} books)\n` +
-                    `🎯 Edge: ${g.edge_pct > 0 ? "+" : ""}${absEdge.toFixed(1)}% → BUY ${g.edge_team}\n` +
+                    `🎯 Edge: ${g.edge_pct > 0 ? "+" : ""}${g.edge_pct.toFixed(1)}% → BUY ${g.edge_team}\n` +
                     `💰 Volume: $${(g.poly_volume || 0).toLocaleString()} | ⏰ Tip-off: ${tipoffStr} ET\n\n` +
                     (g.polyMarketUrl ? `<${g.polyMarketUrl}|Open on Polymarket>` : ""),
                 }),
@@ -420,7 +429,7 @@ serve(async (req) => {
 
               await supabase.from("alert_log").upsert(
                 {
-                  poly_event_id: g.poly_event_id || g.odds_api_game_id,
+                  poly_event_id: g.odds_api_game_id,
                   alert_date: todayStr,
                   last_edge: absEdge,
                   alerted_at: new Date().toISOString(),

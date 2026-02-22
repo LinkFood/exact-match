@@ -19,6 +19,7 @@ interface ExpandedRowProps {
 
 export function ExpandedRow({ game, priceHistory, onIntervalChange }: ExpandedRowProps) {
   const [chartInterval, setChartInterval] = useState<"1d" | "1w">("1d");
+  const [chartLoading, setChartLoading] = useState(false);
 
   const chartData = priceHistory.map((p) => ({
     time: new Date(p.t * 1000).toLocaleTimeString("en-US", {
@@ -41,8 +42,10 @@ export function ExpandedRow({ game, priceHistory, onIntervalChange }: ExpandedRo
               <button
                 key={interval}
                 onClick={() => {
+                  setChartLoading(true);
                   setChartInterval(interval);
                   onIntervalChange?.(interval);
+                  setTimeout(() => setChartLoading(false), 2000);
                 }}
                 className={`px-2 py-0.5 text-xs rounded ${
                   chartInterval === interval
@@ -55,6 +58,7 @@ export function ExpandedRow({ game, priceHistory, onIntervalChange }: ExpandedRo
             ))}
           </div>
         </div>
+        <div className={chartLoading ? "opacity-40 transition-opacity" : "transition-opacity"}>
         {chartData.length > 0 ? (
           <div className="h-48">
             <ResponsiveContainer width="100%" height="100%">
@@ -111,6 +115,7 @@ export function ExpandedRow({ game, priceHistory, onIntervalChange }: ExpandedRo
             No price history available
           </div>
         )}
+        </div>
       </div>
 
       {/* Book Breakdown */}

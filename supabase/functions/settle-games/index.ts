@@ -1,3 +1,6 @@
+// IMPORTANT: ODDS_API_KEY must be set as a Supabase edge function secret.
+// Set it via: supabase secrets set ODDS_API_KEY=your_key_here
+// Or via the Supabase Dashboard: Settings → Edge Functions → Secrets
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -110,7 +113,7 @@ function normalizeSchoolName(school: string): string {
       return n;
     }
   }
-  n = n.replace(/\bst\.?\b/g, "state");
+  n = n.replace(/\bst\.?\b/g, "saint");
   return n;
 }
 
@@ -143,7 +146,7 @@ serve(async (req) => {
       .from("edge_scans")
       .select("*")
       .is("result", null)
-      .lt("game_date", new Date().toISOString().split("T")[0]);
+      .lte("game_date", new Date().toISOString().split("T")[0]);
 
     if (fetchErr) throw new Error(fetchErr.message);
     if (!unsettled || unsettled.length === 0) {
@@ -168,7 +171,7 @@ serve(async (req) => {
       const oddsKey = sportToOddsKey[sport] || "basketball_ncaab";
       try {
         const res = await fetch(
-          `https://api.the-odds-api.com/v4/sports/${oddsKey}/scores/?apiKey=${oddsApiKey}&daysFrom=3&dateFormat=iso`
+          `https://api.the-odds-api.com/v4/sports/${oddsKey}/scores/?apiKey=${oddsApiKey}&daysFrom=7&dateFormat=iso`
         );
         const scores = await res.json();
         if (Array.isArray(scores)) {

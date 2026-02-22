@@ -11,6 +11,7 @@ interface GameTableProps {
   minVolume: number;
   isLoading: boolean;
   onExpandGame: (game: GameData) => void;
+  onChartIntervalChange?: (tokenId: string, interval: "1d" | "1w") => void;
 }
 
 type SortKey = "edge" | "tipoff" | "volume" | "polyPrice";
@@ -22,6 +23,7 @@ export function GameTable({
   minVolume,
   isLoading,
   onExpandGame,
+  onChartIntervalChange,
 }: GameTableProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>("edge");
@@ -31,6 +33,7 @@ export function GameTable({
   const filtered = games.filter((g) => {
     if (hideFair && (Math.abs(g.edge || 0) * 100) < edgeThreshold) return false;
     if (minVolume > 0 && (g.polyVolume || 0) < minVolume) return false;
+    if (volumeFilter > 0 && (g.polyVolume || 0) < volumeFilter) return false;
     return true;
   });
 
@@ -152,8 +155,6 @@ export function GameTable({
           const isEdge = edgeAbs >= edgeThreshold;
           const isBuy = game.signal === "BUY_YES";
           const isSell = game.signal === "BUY_NO";
-          const isBelowVolFilter = volumeFilter > 0 && (game.polyVolume || 0) < volumeFilter;
-
           let rowBg = "";
           if (isEdge && isBuy) rowBg = "bg-edge-green-bg";
           else if (isEdge && isSell) rowBg = "bg-edge-red-bg";
@@ -162,7 +163,7 @@ export function GameTable({
             <div key={game.id}>
               <div
                 onClick={() => handleRowClick(game)}
-                className={`grid grid-cols-[2fr_80px_80px_80px_80px_140px_80px_40px] gap-2 px-4 py-3 items-center cursor-pointer hover:bg-[hsl(var(--card-hover))] transition-colors ${rowBg} ${isBelowVolFilter ? "opacity-40" : ""}`}
+                className={`grid grid-cols-[2fr_80px_80px_80px_80px_140px_80px_40px] gap-2 px-4 py-3 items-center cursor-pointer hover:bg-[hsl(var(--card-hover))] transition-colors ${rowBg}`}
               >
                 {/* Teams */}
                 <div className="flex items-center gap-2 min-w-0">
@@ -265,6 +266,7 @@ export function GameTable({
                 <ExpandedRow
                   game={game}
                   priceHistory={priceHistories[game.clobTokenId || ""] || []}
+                  onIntervalChange={(interval) => onChartIntervalChange?.(game.clobTokenId || "", interval)}
                 />
               )}
             </div>

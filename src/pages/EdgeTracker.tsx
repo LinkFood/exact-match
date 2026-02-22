@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { settleGames } from "@/lib/api";
-import { loadSettings } from "@/lib/polyedge";
 import { EdgePerformanceTable } from "@/components/EdgePerformanceTable";
 import { RecentResults } from "@/components/RecentResults";
 import { useToast } from "@/hooks/use-toast";
@@ -37,6 +36,12 @@ const EdgeTracker = () => {
       supabase.from("edge_scans").select("id", { count: "exact", head: true }).eq("game_date", todayStr),
     ]);
 
+    const queryError = totalRes.error || settledRes.error || winsRes.error || todayRes.error;
+    if (queryError) {
+      toast({ title: "Failed to load stats", description: queryError.message, variant: "destructive" });
+      return;
+    }
+
     const total = totalRes.count || 0;
     const settled = settledRes.count || 0;
     const wins = winsRes.count || 0;
@@ -52,14 +57,9 @@ const EdgeTracker = () => {
   }
 
   async function handleSettle() {
-    const settings = loadSettings();
-    if (!settings.oddsApiKey) {
-      toast({ title: "No API key", description: "Add your Odds API key in Settings", variant: "destructive" });
-      return;
-    }
     setIsSettling(true);
     try {
-      const result = await settleGames(settings.oddsApiKey);
+      const result = await settleGames();
       toast({ title: "Settlement complete", description: `${result.settled} games settled` });
       fetchStats();
     } catch (err: any) {

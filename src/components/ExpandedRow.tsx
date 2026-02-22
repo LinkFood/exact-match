@@ -14,9 +14,10 @@ import { useState } from "react";
 interface ExpandedRowProps {
   game: GameData;
   priceHistory: PricePoint[];
+  onIntervalChange?: (interval: "1d" | "1w") => void;
 }
 
-export function ExpandedRow({ game, priceHistory }: ExpandedRowProps) {
+export function ExpandedRow({ game, priceHistory, onIntervalChange }: ExpandedRowProps) {
   const [chartInterval, setChartInterval] = useState<"1d" | "1w">("1d");
 
   const chartData = priceHistory.map((p) => ({
@@ -39,7 +40,10 @@ export function ExpandedRow({ game, priceHistory }: ExpandedRowProps) {
             {(["1d", "1w"] as const).map((interval) => (
               <button
                 key={interval}
-                onClick={() => setChartInterval(interval)}
+                onClick={() => {
+                  setChartInterval(interval);
+                  onIntervalChange?.(interval);
+                }}
                 className={`px-2 py-0.5 text-xs rounded ${
                   chartInterval === interval
                     ? "bg-primary text-primary-foreground"

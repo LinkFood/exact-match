@@ -1,9 +1,9 @@
 import { supabase } from "@/integrations/supabase/client";
 import { ScanResult, PricePoint, Sport } from "@/types/polyedge";
 
-export async function scanGames(sport: Sport, oddsApiKey: string): Promise<ScanResult> {
+export async function scanGames(sport: Sport): Promise<ScanResult> {
   const { data, error } = await supabase.functions.invoke("scan-games", {
-    body: { sport, oddsApiKey },
+    body: { sport },
   });
   if (error) throw new Error(error.message || "Scan failed");
   return data as ScanResult;
@@ -31,9 +31,9 @@ export async function sendSlackAlert(
   if (error) throw new Error(error.message || "Slack alert failed");
 }
 
-export async function settleGames(oddsApiKey: string): Promise<any> {
+export async function settleGames(): Promise<any> {
   const { data, error } = await supabase.functions.invoke("settle-games", {
-    body: { oddsApiKey },
+    body: {},
   });
   if (error) throw new Error(error.message || "Settlement failed");
   return data;

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { Link } from "react-router-dom";
 import { Sport, ScanResult, PricePoint, Settings } from "@/types/polyedge";
 import { loadSettings, saveSettings } from "@/lib/polyedge";
-import { scanGames, fetchPriceHistory, sendSlackAlert } from "@/lib/api";
+import { scanGames, fetchPriceHistory } from "@/lib/api";
 import { SportTabs } from "@/components/SportTabs";
 import { StatusBar } from "@/components/StatusBar";
 import { GameTable } from "@/components/GameTable";
@@ -13,43 +13,52 @@ import { useToast } from "@/hooks/use-toast";
 const Index = () => {
   const [settings, setSettings] = useState<Settings>(loadSettings);
   const [activeSport, setActiveSport] = useState<Sport>("ncaab");
-  const [scanResult, setScanResult] = useState<ScanResult | null>(null);
+  const [scanResults, setScanResults] = useState<Record<string, ScanResult | null>>({});
   const [isScanning, setIsScanning] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [priceHistories, setPriceHistories] = useState<Record<string, PricePoint[]>>({});
+  const priceHistoriesRef = useRef<Record<string, PricePoint[]>>({});
   const [nextScanIn, setNextScanIn] = useState<number | null>(null);
-  const alertedGamesRef = useRef<Set<string>>(new Set());
   const scanCacheRef = useRef<Record<string, { data: ScanResult; timestamp: number }>>({});
+  const isScanningRef = useRef(false);
   const { toast } = useToast();
+
+  // Sync priceHistories state to ref so doScan avoids stale closure
+  useEffect(() => {
+    priceHistoriesRef.current = priceHistories;
+  }, [priceHistories]);
+
+  // Derive active tab's scan result
+  const scanResult = scanResults[activeSport] || null;
 
   const doScan = useCallback(
     async (sport: Sport, showToast = true) => {
-      if (!settings.oddsApiKey) {
-        if (showToast) toast({ title: "No API key", description: "Add your Odds API key in Settings", variant: "destructive" });
-        return null;
-      }
+      // Concurrent scan guard
+      if (isScanningRef.current) return null;
+      isScanningRef.current = true;
 
       // Check cache
       const cached = scanCacheRef.current[sport];
       if (cached && Date.now() - cached.timestamp < 5 * 60 * 1000) {
-        setScanResult(cached.data);
+        setScanResults(prev => ({ ...prev, [sport]: cached.data }));
+        isScanningRef.current = false;
         return cached.data;
       }
 
       setIsScanning(true);
       try {
-        const result = await scanGames(sport, settings.oddsApiKey);
-        setScanResult(result);
+        const result = await scanGames(sport);
+        setScanResults(prev => ({ ...prev, [sport]: result }));
         scanCacheRef.current[sport] = { data: result, timestamp: Date.now() };
 
         // Fetch sparkline data for all games with tokens
         const tokenIds = result.games
           .filter((g) => g.clobTokenId)
           .map((g) => g.clobTokenId!);
-        
-        // Batch fetch price histories
+
+        // Batch fetch price histories — use ref to avoid stale closure
         for (const tokenId of tokenIds) {
-          if (!priceHistories[tokenId]) {
+          if (!priceHistoriesRef.current[tokenId]) {
             fetchPriceHistory(tokenId, "1d", 60)
               .then((history) => {
                 setPriceHistories((prev) => ({ ...prev, [tokenId]: history }));
@@ -64,9 +73,10 @@ const Index = () => {
         return null;
       } finally {
         setIsScanning(false);
+        isScanningRef.current = false;
       }
     },
-    [settings.oddsApiKey, toast, priceHistories]
+    [toast]
   );
 
   const handleRefresh = () => {
@@ -90,26 +100,33 @@ const Index = () => {
     }
   };
 
+  const handleChartIntervalChange = (tokenId: string, interval: "1d" | "1w") => {
+    if (!tokenId) return;
+    const fidelity = interval === "1d" ? 60 : 30;
+    fetchPriceHistory(tokenId, interval === "1d" ? "1d" : "1w", fidelity)
+      .then((history) => {
+        setPriceHistories((prev) => ({ ...prev, [tokenId]: history }));
+      })
+      .catch(() => {});
+  };
+
   const handleSaveSettings = (newSettings: Settings) => {
     setSettings(newSettings);
     saveSettings(newSettings);
   };
 
-  // Auto-scan on load if API key exists
+  // Auto-scan on load
   useEffect(() => {
-    if (settings.oddsApiKey) {
-      doScan(activeSport, false);
-    }
+    doScan(activeSport, false);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-scan interval
   useEffect(() => {
-    if (!settings.autoScan || !settings.oddsApiKey) {
+    if (!settings.autoScan) {
       setNextScanIn(null);
       return;
     }
 
-    const intervalMs = settings.scanFrequency * 60 * 1000;
     let countdown = settings.scanFrequency * 60;
     setNextScanIn(countdown);
 
@@ -117,21 +134,11 @@ const Index = () => {
       countdown -= 1;
       if (countdown <= 0) {
         countdown = settings.scanFrequency * 60;
-        // Scan each enabled sport
+        // Scan each enabled sport — Slack alerts handled server-side by scan-edges cron
         (async () => {
           for (const sport of settings.sportsToMonitor) {
             delete scanCacheRef.current[sport];
-            const result = await doScan(sport, false);
-            if (result && settings.slackWebhookUrl) {
-              // Check for new edges
-              for (const game of result.games) {
-                const edgeAbs = Math.abs(game.edge || 0) * 100;
-                if (edgeAbs >= settings.edgeThreshold && !alertedGamesRef.current.has(game.id)) {
-                  alertedGamesRef.current.add(game.id);
-                  sendSlackAlert(settings.slackWebhookUrl, game).catch(() => {});
-                }
-              }
-            }
+            await doScan(sport, false);
           }
         })();
       }
@@ -139,7 +146,7 @@ const Index = () => {
     }, 1000);
 
     return () => clearInterval(countdownTimer);
-  }, [settings.autoScan, settings.scanFrequency, settings.sportsToMonitor, settings.oddsApiKey, settings.slackWebhookUrl, settings.edgeThreshold, doScan]);
+  }, [settings.autoScan, settings.scanFrequency, settings.sportsToMonitor, doScan]);
 
   return (
     <div className="flex flex-col h-screen bg-background">
@@ -185,21 +192,6 @@ const Index = () => {
         onRefresh={handleRefresh}
       />
 
-      {/* No API Key Prompt */}
-      {!settings.oddsApiKey && (
-        <div className="mx-4 mt-4 p-4 bg-card border border-border rounded-lg text-center">
-          <p className="text-sm text-muted-foreground mb-2">
-            Add your Odds API key in Settings to get started
-          </p>
-          <button
-            onClick={() => setShowSettings(true)}
-            className="text-sm text-primary hover:underline"
-          >
-            Open Settings →
-          </button>
-        </div>
-      )}
-
       {/* Game Table */}
       <GameTable
         games={scanResult?.games || []}
@@ -208,6 +200,7 @@ const Index = () => {
         minVolume={settings.minVolume}
         isLoading={isScanning}
         onExpandGame={handleExpandGame}
+        onChartIntervalChange={handleChartIntervalChange}
       />
 
       {/* Unmatched Section */}

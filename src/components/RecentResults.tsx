@@ -75,13 +75,13 @@ export function RecentResults() {
                 <span>{game.home_team}</span>
               </td>
               <td className="text-right px-4 py-2 font-mono font-semibold">
-                {game.edge_pct > 0 ? "+" : ""}{game.edge_pct.toFixed(1)}%
+                {(game.edge_pct ?? 0) > 0 ? "+" : ""}{(game.edge_pct ?? 0).toFixed(1)}%
               </td>
               <td className="text-right px-4 py-2 font-mono">
                 {game.poly_price !== null ? `${(game.poly_price * 100).toFixed(0)}¢` : "—"}
               </td>
               <td className="text-right px-4 py-2 font-mono">
-                {(game.book_consensus * 100).toFixed(1)}%
+                {((game.book_consensus ?? 0) * 100).toFixed(1)}%
               </td>
               <td className="text-center px-4 py-2">
                 {game.edge_team_won ? (

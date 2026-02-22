@@ -86,28 +86,6 @@ export function SettingsPanel({ settings, onSave, onClose }: SettingsPanelProps)
             </button>
           </div>
 
-          {/* Odds API Key */}
-          <div className="space-y-2">
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              The Odds API Key
-            </label>
-            <input
-              type="password"
-              value={draft.oddsApiKey}
-              onChange={(e) => update("oddsApiKey", e.target.value)}
-              placeholder="Paste your API key"
-              className="w-full px-3 py-2 bg-secondary border border-border rounded-md text-sm font-mono focus:outline-none focus:ring-1 focus:ring-primary"
-            />
-            <a
-              href="https://the-odds-api.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs text-primary hover:underline"
-            >
-              Get free key →
-            </a>
-          </div>
-
           {/* Slack Webhook */}
           <div className="space-y-2">
             <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">

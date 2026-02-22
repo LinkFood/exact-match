@@ -68,8 +68,14 @@ const SCHOOL_ALIASES: Record<string, string> = {
   "uab":"alabama birmingham","utsa":"texas san antonio","siu":"southern illinois",
   "niu":"northern illinois","wku":"western kentucky","ecu":"east carolina",
   "jmu":"james madison","odu":"old dominion","byu":"brigham young",
-  "st. john's":"state johns","saint john's":"state johns","st johns":"state johns",
-  "saint mary's":"saint marys","st. mary's":"saint marys",
+  "st. john's":"saint johns","saint john's":"saint johns","st johns":"saint johns",
+  "st john's":"saint johns",
+  "saint mary's":"saint marys","st. mary's":"saint marys","st mary's":"saint marys",
+  "st. bonaventure":"saint bonaventure","saint bonaventure":"saint bonaventure",
+  "st. peter's":"saint peters","saint peter's":"saint peters",
+  "st. joseph's":"saint josephs","saint joseph's":"saint josephs",
+  "st. thomas":"saint thomas","saint thomas":"saint thomas",
+  "st. francis":"saint francis","saint francis":"saint francis",
   "uncw":"unc wilmington","uncg":"unc greensboro","unca":"unc asheville",
   "siue":"siu edwardsville","umkc":"missouri kansas city",
   "kansas city":"missouri kansas city","penn":"pennsylvania",
@@ -98,19 +104,21 @@ function extractSchoolName(fullName: string): string {
 
 function normalizeSchoolName(school: string): string {
   let n = school.toLowerCase().trim();
-  n = n.replace(/\bst\.?\b/g, "state");
   n = n.replace(/\bfightin'?\s*/g, "");
   n = n.replace(/-/g, " ").replace(/\s+/g, " ").trim();
   n = n.replace(/\([^)]*\)/g, "").trim();
   n = n.replace(/\buniversity\b/g, "").replace(/\bcollege\b/g, "").trim();
   n = n.replace(/\s+/g, " ").trim();
+  // Alias lookup FIRST — so "st. john's" matches before "st" → "state" regex
   if (SCHOOL_ALIASES[n]) return SCHOOL_ALIASES[n];
   for (const [key, val] of Object.entries(SCHOOL_ALIASES)) {
     if (n.startsWith(key + " ")) {
       n = val + n.substring(key.length);
-      break;
+      return n;
     }
   }
+  // "st" / "st." → "state" — only runs if no alias matched
+  n = n.replace(/\bst\.?\b/g, "state");
   return n;
 }
 
@@ -260,19 +268,26 @@ serve(async (req) => {
 
         if (!polyMatch) continue;
 
-        // Book consensus (away team)
+        // Book consensus (away team) — de-vigged
         const bookBreakdown: any[] = [];
         for (const bm of oddsGame.bookmakers || []) {
           const h2h = bm.markets?.find((m: any) => m.key === "h2h");
-          if (!h2h) continue;
-          const awayOutcome = h2h.outcomes?.find(
+          if (!h2h || !h2h.outcomes || h2h.outcomes.length < 2) continue;
+          const awayOutcome = h2h.outcomes.find(
             (o: any) => getSchoolKey(o.name) === oddsAwayKey
           );
-          if (awayOutcome) {
+          const homeOutcome = h2h.outcomes.find(
+            (o: any) => getSchoolKey(o.name) === oddsHomeKey
+          );
+          if (awayOutcome && homeOutcome) {
+            const rawAway = americanToImpliedProbability(awayOutcome.price);
+            const rawHome = americanToImpliedProbability(homeOutcome.price);
+            const overround = rawAway + rawHome;
+            const deviggedAway = overround > 0 ? rawAway / overround : rawAway;
             bookBreakdown.push({
               book: bm.title,
               odds: awayOutcome.price,
-              impliedProb: americanToImpliedProbability(awayOutcome.price),
+              impliedProb: deviggedAway,
             });
           }
         }
@@ -293,17 +308,20 @@ serve(async (req) => {
           const market = polyMatch.markets[0];
           try {
             const prices = JSON.parse(market.outcomePrices || "[]");
-            polyVolume = parseFloat(market.volume) || null;
+            const volParsed = parseFloat(market.volume);
+            polyVolume = isNaN(volParsed) ? null : volParsed;
             polySlug = polyMatch.slug || null;
 
             const titleParts = (polyMatch.title || "").split(/\s+vs\.?\s+/i);
             if (titleParts.length === 2) {
               const ps1 = getSchoolKey(titleParts[0]);
               const awayIdx = ps1 === oddsAwayKey ? 0 : 1;
-              polyPrice = parseFloat(prices[awayIdx]) || null;
+              const priceParsed = parseFloat(prices[awayIdx]);
+              polyPrice = isNaN(priceParsed) ? null : priceParsed;
               polyTeam = titleParts[awayIdx]?.trim() || oddsGame.away_team;
             } else {
-              polyPrice = parseFloat(prices[0]) || null;
+              const priceParsed = parseFloat(prices[0]);
+              polyPrice = isNaN(priceParsed) ? null : priceParsed;
               polyTeam = oddsGame.away_team;
             }
           } catch {}

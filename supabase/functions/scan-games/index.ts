@@ -105,11 +105,23 @@ const SCHOOL_ALIASES: Record<string, string> = {
   "jmu": "james madison",
   "odu": "old dominion",
   "byu": "brigham young",
-  "st. john's": "state johns",
-  "saint john's": "state johns",
-  "st johns": "state johns",
+  "st. john's": "saint johns",
+  "saint john's": "saint johns",
+  "st johns": "saint johns",
+  "st john's": "saint johns",
   "saint mary's": "saint marys",
   "st. mary's": "saint marys",
+  "st mary's": "saint marys",
+  "st. bonaventure": "saint bonaventure",
+  "saint bonaventure": "saint bonaventure",
+  "st. peter's": "saint peters",
+  "saint peter's": "saint peters",
+  "st. joseph's": "saint josephs",
+  "saint joseph's": "saint josephs",
+  "st. thomas": "saint thomas",
+  "saint thomas": "saint thomas",
+  "st. francis": "saint francis",
+  "saint francis": "saint francis",
   // Matching fix aliases
   "uncw": "unc wilmington",
   "uncg": "unc greensboro",
@@ -153,32 +165,33 @@ function extractSchoolName(fullName: string): string {
 function normalizeSchoolName(school: string): string {
   let n = school.toLowerCase().trim();
 
-  // 1. CRITICAL: "st" / "st." → "state" (biggest single fix)
-  n = n.replace(/\bst\.?\b/g, "state");
-
-  // 2. Strip "fightin'" prefix
+  // 1. Strip "fightin'" prefix
   n = n.replace(/\bfightin'?\s*/g, "");
 
-  // 3. Hyphens → spaces, collapse whitespace
+  // 2. Hyphens → spaces, collapse whitespace
   n = n.replace(/-/g, " ").replace(/\s+/g, " ").trim();
 
-  // 4. Remove parenthetical qualifiers like (OH), (FL)
+  // 3. Remove parenthetical qualifiers like (OH), (FL)
   n = n.replace(/\([^)]*\)/g, "").trim();
 
-  // 5. Strip "university" / "college"
+  // 4. Strip "university" / "college"
   n = n.replace(/\buniversity\b/g, "").replace(/\bcollege\b/g, "").trim();
 
-  // 6. Collapse whitespace again after removals
+  // 5. Collapse whitespace again after removals
   n = n.replace(/\s+/g, " ").trim();
 
-  // 7. Alias lookup — check exact match first, then startsWith for multi-word aliases
+  // 6. Alias lookup FIRST — so "st. john's" matches before "st" → "state" regex
   if (SCHOOL_ALIASES[n]) return SCHOOL_ALIASES[n];
   for (const [key, val] of Object.entries(SCHOOL_ALIASES)) {
     if (n.startsWith(key + " ")) {
       n = val + n.substring(key.length);
-      break;
+      return n;
     }
   }
+
+  // 7. "st" / "st." → "state" — only runs if no alias matched
+  n = n.replace(/\bst\.?\b/g, "state");
+
   return n;
 }
 
@@ -199,7 +212,8 @@ serve(async (req) => {
   }
 
   try {
-    const { sport, oddsApiKey } = await req.json();
+    const { sport } = await req.json();
+    const oddsApiKey = Deno.env.get("ODDS_API_KEY");
     const config = SPORT_CONFIG[sport];
     if (!config) {
       return new Response(
@@ -289,19 +303,26 @@ serve(async (req) => {
         }
       }
 
-      // Calculate book consensus (for away team)
+      // Calculate book consensus (for away team) — de-vigged
       const bookBreakdown: any[] = [];
       for (const bm of oddsGame.bookmakers || []) {
         const h2h = bm.markets?.find((m: any) => m.key === "h2h");
-        if (!h2h) continue;
-        const awayOutcome = h2h.outcomes?.find(
+        if (!h2h || !h2h.outcomes || h2h.outcomes.length < 2) continue;
+        const awayOutcome = h2h.outcomes.find(
           (o: any) => getSchoolKey(o.name) === oddsAwayKey
         );
-        if (awayOutcome) {
+        const homeOutcome = h2h.outcomes.find(
+          (o: any) => getSchoolKey(o.name) === oddsHomeKey
+        );
+        if (awayOutcome && homeOutcome) {
+          const rawAway = americanToImpliedProbability(awayOutcome.price);
+          const rawHome = americanToImpliedProbability(homeOutcome.price);
+          const overround = rawAway + rawHome;
+          const deviggedAway = overround > 0 ? rawAway / overround : rawAway;
           bookBreakdown.push({
             book: bm.title,
             odds: awayOutcome.price,
-            impliedProb: americanToImpliedProbability(awayOutcome.price),
+            impliedProb: deviggedAway,
           });
         }
       }
@@ -324,29 +345,23 @@ serve(async (req) => {
         try {
           const prices = JSON.parse(market.outcomePrices || "[]");
           const tokens = JSON.parse(market.clobTokenIds || "[]");
-          polyVolume = parseFloat(market.volume) || null;
+          const volParsed = parseFloat(market.volume);
+          polyVolume = isNaN(volParsed) ? null : volParsed;
           polyMarketSlug = polyMatch.slug || null;
 
           // Determine which outcome index corresponds to the away team
           const titleParts = (polyMatch.title || "").split(/\s+vs\.?\s+/i);
           if (titleParts.length === 2) {
             const polySchool1 = getSchoolKey(titleParts[0]);
-            // polySchool1 = first team in Poly title → prices[0] / tokens[0]
-            // polySchool2 = second team in Poly title → prices[1] / tokens[1]
+            const awayIdx = polySchool1 === oddsAwayKey ? 0 : 1;
 
-            let awayIdx: number;
-            if (polySchool1 === oddsAwayKey) {
-              awayIdx = 0; // First Poly team IS the away team
-            } else {
-              awayIdx = 1; // Second Poly team is the away team
-            }
-
-            polyPrice = parseFloat(prices[awayIdx]) || null;
+            const priceParsed = parseFloat(prices[awayIdx]);
+            polyPrice = isNaN(priceParsed) ? null : priceParsed;
             clobTokenId = tokens[awayIdx] || null;
             polyTeam = titleParts[awayIdx]?.trim() || oddsGame.away_team;
           } else {
-            // Fallback: can't parse title
-            polyPrice = parseFloat(prices[0]) || null;
+            const priceParsed = parseFloat(prices[0]);
+            polyPrice = isNaN(priceParsed) ? null : priceParsed;
             clobTokenId = tokens[0] || null;
             polyTeam = oddsGame.away_team;
           }

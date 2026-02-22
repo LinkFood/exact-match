@@ -57,7 +57,6 @@ export interface PricePoint {
 }
 
 export interface Settings {
-  oddsApiKey: string;
   slackWebhookUrl: string;
   edgeThreshold: number;
   autoScan: boolean;
@@ -67,11 +66,10 @@ export interface Settings {
 }
 
 export const DEFAULT_SETTINGS: Settings = {
-  oddsApiKey: "",
   slackWebhookUrl: "",
   edgeThreshold: 3,
   autoScan: true,
-  scanFrequency: 1,
+  scanFrequency: 15,
   sportsToMonitor: ["ncaab", "nba", "nfl"],
   minVolume: 0,
 };
